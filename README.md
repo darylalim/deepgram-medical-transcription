@@ -1,6 +1,6 @@
 # Nova Medical Pipeline
 
-Streamlit web app that transcribes medical dictation using Deepgram's Nova-3 Medical model.
+Transcribe audio files with the Deepgram Nova-3 Medical model.
 
 ## Setup
 
@@ -15,11 +15,21 @@ uv run streamlit run streamlit_app.py
 
 If `DEEPGRAM_API_KEY` is not set, the app prompts for it inline.
 
+**Select audio** from the input tabs at the top:
+
+- **Upload** — up to 100 audio files (mp3, m4a, wav, flac, ogg; max 2 GB each)
 - **Record** — record from microphone (max 10 minutes)
 - **URL** — transcribe from HTTP/HTTPS URLs (up to 100 per batch)
-- **Upload** — up to 100 audio files (mp3, m4a, wav, flac, ogg; max 2 GB each)
 
-Transcriptions use smart formatting, numerals conversion, and profanity filtering. Results appear in collapsible expanders showing confidence, duration, and low-confidence word count. Words below 90% confidence are highlighted in the transcript for review. Download results as plain text or JSON.
+Below the input, a **Features** panel (left) holds the request options, with a **Run** button at the bottom. If you populate more than one input tab, Run transcribes a single one by priority — **Upload, then Record, then URL** — and shows a notice naming which ran and which were ignored.
+
+- **Language** — English variants (Nova-3 Medical is English-only)
+- **Smart Format** (on by default) — punctuation, paragraph breaks, and entity formatting
+- **Keyterm Prompting** — type specialized vocabulary (drug names, procedures, names), Enter to add each, up to 100, to boost recognition
+- **Profanity Filter** (off by default) — removes profanity from the transcript
+- **Numerals** (off by default) — converts written numbers to digits (e.g. "nine hundred" → "900")
+
+Once a request completes, the **Transcript** and **JSON** tabs (right) display the response. A single result shows an audio player pinned above the scrollable text; multiple results are labeled and divided per file. (Large uploads — over 25 MB — skip the inline player to limit memory; recordings and URLs always have one.)
 
 ## Sample Audio
 
@@ -35,4 +45,4 @@ Medical dictation practice files from [NCH Software](https://www.nch.com.au/scri
 uv run pytest
 ```
 
-Tests mock the Deepgram API — no real API calls are made. Covers batch processing, error handling, and session state management.
+Tests mock the Deepgram API — no real API calls are made. Covers input validation, batch processing, error handling, and session state management.
