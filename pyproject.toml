@@ -1,7 +1,7 @@
 [project]
 name = "nova-medical-pipeline"
-version = "0.1.0"
-description = "Streamlit web app that transcribes medical dictation using Deepgram's Nova-3 Medical model"
+version = "0.2.0"
+description = "Transcribe audio files with the Deepgram Nova-3 Medical model."
 requires-python = ">=3.12"
 dependencies = [
     "deepgram-sdk==5.3.2",
