@@ -16,9 +16,9 @@ def mock_deepgram_cls():
         alt.confidence = 0.98
         alt.words = [
             mock_word("Life", 0.99),
-            mock_word("moves", 0.85),  # low — should be highlighted
+            mock_word("moves", 0.85),  # low confidence
             mock_word("pretty", 0.97),
-            mock_word("fast", 0.80),  # low — should be highlighted
+            mock_word("fast", 0.80),  # low confidence
             mock_word("really.", 0.96),
         ]
 
