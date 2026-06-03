@@ -4,7 +4,7 @@ version = "0.2.0"
 description = "Transcribe audio files with the Deepgram Nova-3 Medical model."
 requires-python = ">=3.12"
 dependencies = [
-    "deepgram-sdk==5.3.2",
+    "deepgram-sdk==7.3.0",
     "python-dotenv==1.2.1",
     "streamlit==1.54.0",
 ]
