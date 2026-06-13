@@ -64,6 +64,27 @@ class TestProcessInputs:
 
         assert mock_st.session_state["audio_sources"] == [b"a", b"b"]
 
+    def test_forwards_features_to_sdk_call(self, mock_deepgram_cls, mock_st):
+        # The wrapper forwards each feature kwarg by name through build_options to the SDK
+        # call; a forwarding typo (e.g. swapping diarize/measurements) would slip past the
+        # build_options/transcribe_batch unit tests but is caught here.
+        streamlit_app._process_inputs(
+            "test-key",
+            [("test.wav", FAKE_AUDIO)],
+            keyterms=["metformin"],
+            language="en-GB",
+            diarize=True,
+            redact=["pii"],
+        )
+
+        kwargs = mock_deepgram_cls.return_value.listen.v1.media.transcribe_file.call_args.kwargs
+        assert kwargs["keyterm"] == ["metformin"]
+        assert kwargs["language"] == "en-GB"
+        assert kwargs["diarize"] is True
+        assert kwargs["request_options"] == {
+            "additional_query_parameters": {"redact": ["pii"]}
+        }
+
     def test_large_file_dropped_from_playback(self, mock_deepgram_cls, mock_st):
         with patch.object(streamlit_app, "MAX_PLAYBACK_BYTES", 2):
             streamlit_app._process_inputs(

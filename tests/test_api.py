@@ -221,6 +221,15 @@ class TestBatchSemantics:
         assert body["status"] == "failed"
         assert body["summary"] == {"total": 2, "succeeded": 0, "failed": 2}
 
+    def test_upstream_timeout_is_classified(self, client, mock_dg):
+        # A timeout-flavored message maps to the distinct upstream_timeout taxonomy; the
+        # mixed case also pins the classifier's .lower() (§5.4).
+        _media(mock_dg).transcribe_url.side_effect = Exception("Connection timed out")
+        resp = _post_urls(client, urls=["https://e.com/a.mp3"])
+        err = resp.json()["results"][0]["error"]
+        assert err["type"] == "upstream_timeout"
+        assert err["code"] == "deepgram_timeout"
+
     def test_segments_are_zero_based(self, client, mock_dg):
         words = [mock_word("Hi", 0.9, speaker=0), mock_word("There", 0.9, speaker=1)]
         _media(mock_dg).transcribe_url.return_value = make_response(words=words)
@@ -330,6 +339,40 @@ class TestSizeLimits:
         # the oversized file never reached Deepgram
         assert _media(mock_dg).transcribe_file.call_count == 1
 
+    def test_oversized_middle_file_remaps_survivor_indices(
+        self, client, mock_dg, monkeypatch
+    ):
+        # A skipped middle file compacts the sendable list, so the trailing survivor must
+        # map from sendable[1] back to original index 2 — catches an off-by-one the
+        # error-at-index-0 test above cannot.
+        monkeypatch.setattr(main, "MAX_FILE_SIZE", 3)
+        _media(mock_dg).transcribe_file.side_effect = lambda request, **_: (
+            make_response(transcript=request.decode())
+        )
+        resp = client.post(
+            "/v1/transcriptions/files",
+            headers=AUTH,
+            files=[
+                ("files", ("a.wav", b"a", "audio/wav")),
+                ("files", ("big.wav", b"too-big", "audio/wav")),
+                ("files", ("c.wav", b"c", "audio/wav")),
+            ],
+        )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["status"] == "partially_completed"
+        assert body["summary"] == {"total": 3, "succeeded": 2, "failed": 1}
+        results = body["results"]
+        assert [r["index"] for r in results] == [0, 1, 2]
+        assert results[0]["status"] == "ok"
+        assert results[0]["name"] == "a.wav"
+        assert results[0]["transcript"] == "a"
+        assert results[1]["error"]["code"] == "file_too_large"
+        assert results[2]["status"] == "ok"
+        assert results[2]["name"] == "c.wav"
+        assert results[2]["transcript"] == "c"
+        assert _media(mock_dg).transcribe_file.call_count == 2
+
     def test_request_body_too_large_is_413(self, client, monkeypatch):
         monkeypatch.setenv("MAX_REQUEST_BYTES", "10")
         resp = _post_urls(client)
@@ -387,3 +430,22 @@ class TestMultiTokenAuth:
         )
         assert resp.status_code == 401
         assert resp.json()["error"]["code"] == "invalid_token"
+
+
+class TestLifespan:
+    """The fail-closed startup guard (§6.2). Tokens are cleared with setenv("") not
+    delenv: api.settings runs load_dotenv() at import and the repo .env defines
+    API_AUTH_TOKENS, which delenv would leave in place (silently no-raising)."""
+
+    def test_refuses_nonloopback_without_tokens(self, monkeypatch):
+        monkeypatch.setenv("API_HOST", "0.0.0.0")
+        monkeypatch.setenv("API_AUTH_TOKENS", "")
+        with pytest.raises(RuntimeError, match="Refusing to start"):
+            with TestClient(main.app):
+                pass
+
+    def test_allows_nonloopback_with_tokens(self, monkeypatch):
+        monkeypatch.setenv("API_HOST", "0.0.0.0")
+        monkeypatch.setenv("API_AUTH_TOKENS", "tok")
+        with TestClient(main.app):  # startup must not raise
+            pass

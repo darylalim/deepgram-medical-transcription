@@ -224,3 +224,24 @@ class TestTranscribeBatch:
         assert gate.entered == 2
         for call in cls.return_value.listen.v1.media.transcribe_url.call_args_list:
             assert set(call.kwargs) == {"url", "model", "smart_format"}
+
+    def test_gate_permit_released_on_failure(self):
+        # The gate's whole purpose: each permit is released even when the upstream call
+        # raises. A real BoundedSemaphore(2) must be fully replenished after both items
+        # fail — a call moved outside `with gate:` would leak permits and block here.
+        sem = threading.BoundedSemaphore(2)
+        with patch("nova.transcribe.DeepgramClient") as cls:
+            cls.return_value.listen.v1.media.transcribe_url.side_effect = Exception(
+                "boom"
+            )
+            results = transcribe_batch(
+                "k",
+                [("u1", {"url": "u1"}), ("u2", {"url": "u2"})],
+                "transcribe_url",
+                options=OPTS,
+                gate=sem,
+            )
+        assert all(r.error == "boom" for r in results)
+        assert sem.acquire(blocking=False) is True
+        assert sem.acquire(blocking=False) is True
+        assert sem.acquire(blocking=False) is False  # no over-release either
