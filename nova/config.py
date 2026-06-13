@@ -34,7 +34,7 @@ REDACT_GROUPS = {
 MAX_KEYTERMS = 100  # client-side cap; Deepgram's real limit is 500 tokens/request
 MAX_UPLOADS = 100
 MAX_CONCURRENCY = 5
-MAX_FILE_SIZE = 2 * 1024 * 1024 * 1024  # 2 GB
+MAX_FILE_SIZE = 2 * 1024 * 1024 * 1024  # 2 GiB
 
 AUDIO_EXTENSIONS = (".mp3", ".m4a", ".wav", ".flac", ".ogg")
 

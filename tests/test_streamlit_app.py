@@ -300,7 +300,7 @@ class TestRun:
         ok = mock_upload("ok.wav", b"ok")
         streamlit_app._run("key", [big, ok], None, "")
 
-        mock_st.error.assert_called_once_with("Skipped (exceeds 2 GB): big.wav")
+        mock_st.error.assert_called_once_with("Skipped (exceeds 2 GiB): big.wav")
         media = mock_deepgram_cls.return_value.listen.v1.media
         media.transcribe_file.assert_called_once()
         assert mock_st.session_state["responses"][0][0] == "ok.wav"

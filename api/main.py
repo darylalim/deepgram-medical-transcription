@@ -291,7 +291,7 @@ async def transcribe_files(
                 error=ItemError(
                     type="file_too_large",
                     code="file_too_large",
-                    message="File exceeds the 2 GB per-file limit.",
+                    message="File exceeds the 2 GiB per-file limit.",
                 ),
             )
         else:

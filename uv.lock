@@ -445,16 +445,16 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "deepgram-sdk", specifier = "==7.3.0" },
-    { name = "fastapi", specifier = ">=0.136.3" },
+    { name = "fastapi", specifier = "==0.136.3" },
     { name = "python-dotenv", specifier = "==1.2.1" },
-    { name = "python-multipart", specifier = ">=0.0.32" },
+    { name = "python-multipart", specifier = "==0.0.32" },
     { name = "streamlit", specifier = "==1.54.0" },
-    { name = "uvicorn", extras = ["standard"], specifier = ">=0.49.0" },
+    { name = "uvicorn", extras = ["standard"], specifier = "==0.49.0" },
 ]
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "httpx", specifier = ">=0.28.1" },
+    { name = "httpx", specifier = "==0.28.1" },
     { name = "pytest", specifier = "==9.0.2" },
     { name = "ruff", specifier = "==0.15.0" },
     { name = "ty", specifier = "==0.0.16" },

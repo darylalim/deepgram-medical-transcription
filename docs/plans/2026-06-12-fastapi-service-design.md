@@ -91,6 +91,10 @@ nova-medical-pipeline/
 └── CLAUDE.md                 # + uvicorn command, nova/ + api/ notes, BOTH mock points documented
 ```
 
+**Outcome (as shipped — the ASCII tree above is the original plan):**
+- `nova/__init__.py` is a package docstring only; every consumer imports from `nova.config` / `nova.transcribe` / `nova.results` directly, so the re-export facade was not added.
+- `tests/test_streamlit_app.py` was **split, not kept verbatim** — trimmed to UI-only, with the core-logic coverage relocated to `tests/test_transcribe.py` and `tests/test_results.py` (so the "UNCHANGED — 87 tests" annotation no longer holds). See CLAUDE.md's Testing section for the as-shipped layout; the §4.5 patch-point audit reflects the original plan.
+
 No build-system/packaging change: like `streamlit_app` today, `import nova` / `import api` rely on running from the repo root (root `conftest.py` handles tests). A pip-installable consumer would force a src/ layout later — deferred (§9).
 
 ---
@@ -321,7 +325,7 @@ curl -X POST localhost:8000/v1/transcriptions/files \
 ```
 
 Size enforcement (uvicorn does **not** enforce body size, so the app must):
-- **Per file > `MAX_FILE_SIZE` (2 GiB):** per-item `file_too_large` error, skip-and-continue, no Deepgram call — the API analog of `_run`'s "Skipped (exceeds 2 GB)".
+- **Per file > `MAX_FILE_SIZE` (2 GiB):** per-item `file_too_large` error, skip-and-continue, no Deepgram call — the API analog of `_run`'s "Skipped (exceeds 2 GiB)".
 - **Whole request > `MAX_REQUEST_BYTES` (default `MAX_FILE_SIZE` + 16 MiB, i.e. 2 GiB plus multipart-framing headroom; configurable):** real `413` via Content-Length precheck plus a capped streamed read during parsing (defense against absent/false Content-Length). The headroom exists because multipart boundaries and option fields add bytes — without it a legitimate maximal single file would 413. The default pins the invariant *one request carries at most one maximal file*, and since file bytes are materialized for the SDK, the budget doubles as a per-request RAM bound (§11.1). The endpoint description states this cap explicitly and names **URL batches as the sanctioned bulk path** — multi-gigabyte multipart batches are intentionally not supported in one request.
 
 #### File/URL mixing
@@ -399,6 +403,7 @@ Adopted from the Deepgram starter and extended: the starter's numeric-redundancy
 |---|---|---|
 | 400 | `invalid_request` | `no_files` (zero `files` parts) |
 | 401 | `unauthorized` | `missing_token`, `invalid_token` (+ `WWW-Authenticate: Bearer`) |
+| 404 / 405 | `not_found` / `method_not_allowed` | framework-raised routing errors (`type`==`code`); 405 echoes the `Allow` header |
 | 413 | `payload_too_large` | `request_body_too_large` (enforced in-app, §5.1 — not "reserved for a proxy") |
 | 422 | `validation_error` | `invalid_language`, `invalid_redact_group`, `too_many_keyterms`, `too_many_urls`, `too_many_files`, `invalid_url_scheme`, `malformed_body` |
 | 503 | `not_configured` | `missing_deepgram_key`, `missing_auth_tokens` |

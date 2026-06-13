@@ -22,7 +22,7 @@ If `DEEPGRAM_API_KEY` is not set, the app prompts for it inline.
 
 **Select audio** from the input tabs at the top:
 
-- **Upload** — up to 100 audio files (mp3, m4a, wav, flac, ogg; max 2 GB each)
+- **Upload** — up to 100 audio files (mp3, m4a, wav, flac, ogg; max 2 GiB each)
 - **Record** — record from microphone (max 10 minutes)
 - **URL** — transcribe from HTTP/HTTPS URLs (up to 100 per batch)
 
