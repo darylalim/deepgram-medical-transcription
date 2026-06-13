@@ -3,7 +3,7 @@ import os
 import re
 import wave
 from collections.abc import Callable
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import as_completed
 from typing import Any
 
 import streamlit as st
@@ -19,13 +19,12 @@ from nova.config import (
     DEFAULT_DICTATION,
     DEFAULT_MEASUREMENTS,
     DEFAULT_DIARIZE,
-    MAX_CONCURRENCY,
     MAX_FILE_SIZE,
     MAX_KEYTERMS,
     MAX_UPLOADS,
     has_audio_extension,
 )
-from nova.transcribe import build_options
+from nova.transcribe import build_options, transcribe_batch
 
 load_dotenv()
 
@@ -60,7 +59,7 @@ def _playback_source(value: object) -> bytes | str | None:
 
 def _transcribe_batch(
     api_key: str,
-    items: list[tuple[str, dict[str, object]]],
+    items: list[tuple[str, dict[str, Any]]],
     method: str,
     keyterms: list[str] | None = None,
     language: str | None = None,
@@ -70,9 +69,14 @@ def _transcribe_batch(
     diarize: bool = DEFAULT_DIARIZE,
     redact: list[str] | None = None,
 ):
-    """Transcribe a batch of audio sources in parallel; preserve input order in results."""
-    client = DeepgramClient(api_key=api_key)
-    transcribe = getattr(client.listen.v1.media, method)
+    """Transcribe a batch via the shared core, owning the Streamlit-side concerns.
+
+    Thin UI adapter over `nova.transcribe.transcribe_batch`: it builds the playback
+    sources up front, drives the progress bar through `on_progress`, renders one
+    `st.error` per failed item, and writes results to session state. The module-global
+    `DeepgramClient`/`as_completed` are passed as seams so the existing test patch
+    points keep intercepting them.
+    """
     opts = build_options(
         keyterms=keyterms,
         language=language,
@@ -84,31 +88,33 @@ def _transcribe_batch(
     )
     total = len(items)
     progress = st.progress(0.0, f"Transcribing 0/{total}...")
-
     sources = {
         i: _playback_source(kwargs.get("request", kwargs.get("url")))
         for i, (_, kwargs) in enumerate(items)
     }
-    indexed: list[tuple[int, str, Any]] = []
-    with ThreadPoolExecutor(max_workers=MAX_CONCURRENCY) as executor:
-        futures = {
-            executor.submit(transcribe, **kwargs, **opts): (i, label)
-            for i, (label, kwargs) in enumerate(items)
-        }
-        for done, future in enumerate(as_completed(futures), start=1):
-            i, label = futures[future]
-            progress.progress(done / total, f"Transcribing {done}/{total}...")
-            try:
-                indexed.append((i, label, future.result()))
-            except Exception as e:
-                st.error(f"Transcription failed for {label}: {e}")
 
+    def _on_progress(done: int, t: int) -> None:
+        progress.progress(done / t, f"Transcribing {done}/{t}...")
+
+    results = transcribe_batch(
+        api_key,
+        items,
+        method,
+        options=opts,
+        client_cls=DeepgramClient,
+        as_completed_fn=as_completed,
+        on_progress=_on_progress,
+    )
     progress.empty()
 
+    for r in results:
+        if r.error is not None:
+            st.error(f"Transcription failed for {r.label}: {r.error}")
+
     # Always overwrite (even when empty) so a fully-failed run clears stale results.
-    indexed.sort(key=lambda r: r[0])
-    st.session_state["responses"] = [(label, resp) for _, label, resp in indexed]
-    st.session_state["audio_sources"] = [sources[i] for i, _, _ in indexed]
+    ok = [r for r in results if r.error is None]
+    st.session_state["responses"] = [(r.label, r.response) for r in ok]
+    st.session_state["audio_sources"] = [sources[r.index] for r in ok]
 
 
 def _process_inputs(api_key: str, files: list[tuple[str, bytes]], **opts) -> None:
