@@ -264,6 +264,8 @@ def _transcribe_batch(api_key, items, method, keyterms=None, language=None,
     st.session_state["audio_sources"] = [sources[r.index] for r in ok]
 ```
 
+**Outcome (as shipped):** a later refactor (`6d596b3`) collapsed the explicit per-feature parameters into `**opts: Any` — `def _transcribe_batch(api_key, items, method, **opts: Any)`, forwarding `build_options(**opts)` — so the signature in the block above is the original plan, not the shipped code (and "Exact current signature preserved" no longer holds literally). The change is behavior-preserving: `_process_inputs`/`_process_urls` pass the same feature names as keyword args, `**opts` captures them, and its keys match `build_options` exactly, so the §4.5 test-survival audit still holds and the full suite stays green. CLAUDE.md documents the shipped `**opts` form.
+
 ### 4.5 Test-survival audit (traced against every patch point in the suite)
 
 | Patch point / assertion | Location | Why it survives |
@@ -391,7 +393,7 @@ Upstream per-call timeout is server configuration (`DEEPGRAM_TIMEOUT_SECONDS`, d
 
 ### 5.4 Error envelope
 
-Adopted from the Deepgram starter and extended: the starter's numeric-redundancy is dropped but the machine-readable `code` is **kept** (panel-flagged: HTTP status + `type` alone cannot distinguish `invalid_language` from `too_many_keyterms` without parsing prose), and `request_id` is added for correlation. Enforced via handlers for `RequestValidationError`, `StarletteHTTPException`, and a catch-all — even FastAPI's native 422s wear the envelope.
+Adopted from the Deepgram starter and extended: the starter's `{error: {type, code, message}}` shape — a string `code`, no numeric field — is **kept** (panel-flagged: HTTP status + `type` alone cannot distinguish `invalid_language` from `too_many_keyterms` without parsing prose), and `request_id` is added for correlation (the starter carries none). Enforced via handlers for `RequestValidationError`, `StarletteHTTPException`, and a catch-all — even FastAPI's native 422s wear the envelope.
 
 ```json
 {"error": {"type": "validation_error", "code": "invalid_redact_group",
@@ -451,7 +453,7 @@ A single developer's local tool whose API brokers (a) a paid Deepgram key and (b
 
 - The API is stateless: audio and transcripts live only in request-scoped memory — never on disk (beyond the Starlette spool above), never in a server-side session. The Streamlit `session_state` caching of responses/audio remains a UI-only behavior.
 - Run: `uv run uvicorn api.main:app --host 127.0.0.1 --port 8000` (added to CLAUDE.md); Streamlit runs side-by-side from the same venv and `.env`. Bind loopback by default; no container — nothing requires one.
-- **Any non-loopback exposure requires TLS, full stop** (PHI in transit). Lowest-friction path for personal infra: Tailscale Serve (WireGuard + automatic certs + device identity); Caddy if a public hostname is ever truly needed (adopted from the starter for TLS termination, not for rate limiting).
+- **Any non-loopback exposure requires TLS, full stop** (PHI in transit). Lowest-friction path for personal infra: Tailscale Serve (WireGuard + automatic certs + device identity); Caddy if a public hostname is ever truly needed — here for TLS termination via auto-HTTPS, not for rate limiting. (The starter, by contrast, runs its Caddy for per-IP rate limiting and serves plain HTTP on a bare port behind Fly.io's TLS edge — so this borrows Caddy's cert handling, not the starter's limiter config.)
 - Redaction caveat carried from `_REDACT_GROUPS`: `pii` de-identifies; `phi` strips clinical content itself. A **Deepgram BAA** is the operator's responsibility before sending real PHI regardless of front-end — the API adds a second door to the same upstream, not a new boundary.
 
 ---
