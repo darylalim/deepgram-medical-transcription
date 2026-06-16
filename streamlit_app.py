@@ -12,16 +12,16 @@ from dotenv import load_dotenv
 
 from nova.config import (
     AUDIO_EXTENSIONS as _AUDIO_EXTENSIONS,
-    LANGUAGES as _LANGUAGES,
-    REDACT_GROUPS as _REDACT_GROUPS,
-    DEFAULT_LANGUAGE,
-    DEFAULT_SMART_FORMAT,
-    DEFAULT_DICTATION,
-    DEFAULT_MEASUREMENTS,
     DEFAULT_DIARIZE,
+    DEFAULT_DICTATION,
+    DEFAULT_LANGUAGE,
+    DEFAULT_MEASUREMENTS,
+    DEFAULT_SMART_FORMAT,
+    LANGUAGES as _LANGUAGES,
     MAX_FILE_SIZE,
     MAX_KEYTERMS,
     MAX_UPLOADS,
+    REDACT_GROUPS as _REDACT_GROUPS,
     has_audio_extension,
 )
 from nova.results import (
@@ -260,7 +260,9 @@ def _output_panel(
         return
 
     with st.container(height=OUTPUT_HEIGHT, border=True):
-        for i, ((name, response), source) in enumerate(zip(responses, audio_sources)):
+        for i, ((name, response), source) in enumerate(
+            zip(responses, audio_sources, strict=True)
+        ):
             if i:
                 st.divider()
             st.markdown(f"**{_escape_markdown(name)}**")
