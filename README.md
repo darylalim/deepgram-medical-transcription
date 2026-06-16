@@ -1,4 +1,4 @@
-# Nova Medical Pipeline
+# Deepgram Medical Transcription
 
 Transcribe medical audio with the Deepgram Nova-3 Medical model — through a **Streamlit UI** or a **FastAPI service**, both built on a shared, framework-free core (`nova/`) so they never drift.
 

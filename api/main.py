@@ -97,7 +97,7 @@ async def lifespan(_app: FastAPI):
 # they are dropped entirely on a non-loopback bind (which also mandates TLS + audit).
 _DOCS = settings.is_loopback()
 app = FastAPI(
-    title="Nova Medical Pipeline API",
+    title="Deepgram Medical Transcription API",
     version="1.0.0",
     summary="Transcribe medical audio with Deepgram Nova-3 Medical (model pinned server-side).",
     lifespan=lifespan,

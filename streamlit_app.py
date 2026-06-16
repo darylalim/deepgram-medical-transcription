@@ -272,7 +272,7 @@ def _output_panel(
 PLACEHOLDER = "Select audio above and run your request to see the response here..."
 NO_TRANSCRIPT = "No transcript in this response."
 
-st.title("Nova Medical Pipeline")
+st.title("Deepgram Medical Transcription")
 
 api_key = os.environ.get("DEEPGRAM_API_KEY", "")
 if not api_key:

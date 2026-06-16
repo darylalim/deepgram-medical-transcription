@@ -1,6 +1,6 @@
 # FastAPI Service Design
 
-**Project:** nova-medical-pipeline
+**Project:** deepgram-medical-transcription
 **Date:** 2026-06-12
 **Status:** Accepted — the five review questions resolved 2026-06-12 (§11)
 
@@ -57,7 +57,7 @@ Key mechanism for test survival: `streamlit_app.py` keeps `from deepgram import 
 ## 3. Repo layout
 
 ```
-nova-medical-pipeline/
+deepgram-medical-transcription/
 ├── streamlit_app.py          # UI only: widgets, _run/_feature_opts/_parse_urls, _playback_source,
 │                             # _display_* renderers, _output_panel, _escape_markdown, session_state
 │                             # writes; _transcribe_batch becomes a thin wrapper over nova/;
