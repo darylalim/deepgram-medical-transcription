@@ -1,6 +1,6 @@
 [project]
 name = "deepgram-medical-transcription"
-version = "0.3.0"
+version = "0.4.0"
 description = "Transcribe medical audio with the Deepgram Nova-3 Medical model — a Streamlit UI and a FastAPI service over a shared core."
 requires-python = ">=3.12"
 dependencies = [

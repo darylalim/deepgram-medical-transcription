@@ -61,6 +61,8 @@ Consumes `nova/` in-process; holds **no** transcription logic of its own, so it 
 
 Env vars live in `.env` (gitignored; see `.env.example`): `DEEPGRAM_API_KEY` (both front-ends, server-side only), `API_AUTH_TOKENS` (API only; generate with `python -c "import secrets; print(secrets.token_urlsafe(32))"`), and optional `API_HOST` / `MAX_REQUEST_BYTES` / `DEEPGRAM_TIMEOUT_SECONDS` / `GLOBAL_MAX_CONCURRENCY`.
 
+The Streamlit UI's visual theme is non-secret config in `.streamlit/config.toml` (tracked); secrets (`.env`, `.streamlit/secrets.toml`) are gitignored.
+
 ## API client guidance (synchronous batches)
 
 The transcription endpoints are synchronous — the connection stays open until the slowest item finishes. Set **generous read timeouts** (minutes per GB of audio; a full 100-item batch can take tens of minutes) and prefer several smaller batches if an HTTP client or intermediary enforces shorter limits. **URL batches are the sanctioned bulk path**; multi-gigabyte multipart batches are intentionally unsupported (the request-byte budget pins one maximal file per request).
@@ -93,6 +95,8 @@ Managed by uv via `pyproject.toml` + `uv.lock`.
 Runtime: **deepgram-sdk** (v7), **streamlit**, **python-dotenv**, **fastapi**, **uvicorn[standard]**, **python-multipart**
 
 Dev: **ruff**, **ty**, **pytest**, **httpx** (FastAPI `TestClient`)
+
+Ruff lint config (`[tool.ruff.lint]`): selects `E`/`F`/`I`/`UP`/`B`; ignores `E501` (line length is formatter-driven); `combine-as-imports = true` (keeps the UI's aliased re-exports in one block); `flake8-bugbear.extend-immutable-calls` whitelists FastAPI's `Depends`/`File`/`Form` argument-default idiom.
 
 **deepgram-sdk** notes (v7, project pins `7.3.0`): options are keyword args (not `PrerecordedOptions`), API key passed explicitly to `DeepgramClient(api_key=...)`, responses are Pydantic models. The namespaced client path is `client.listen.v1.media.transcribe_file(request=<bytes>)` / `transcribe_url(url=<str>)`; most options (`model`, `smart_format`, `keyterm`, `language`, `dictation`, `measurements`, `diarize`, `punctuate`) are typed keyword args. `redact` is typed as a single `str`, so multiple redaction groups go through `request_options={"additional_query_parameters": {"redact": [...]}}` (repeated query params); `RequestOptions` also carries `timeout_in_seconds` (used by the API).
 

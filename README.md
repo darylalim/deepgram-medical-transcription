@@ -36,7 +36,7 @@ Below the input, a **Features** panel (left) holds the request options, with a *
 - **Measurements** (off by default) — abbreviates spoken units (e.g. "five milligrams" → "5 mg")
 - **Redact** (none by default) — replaces selected information with redaction tags. Use **PII** to de-identify (names, locations, IDs); note **PHI** strips clinical content itself (conditions, drugs, injuries)
 
-Once a request completes, the **Transcript** and **JSON** tabs (right) display the response. A single result shows an audio player pinned above the scrollable text; multiple results are labeled and divided per file. With **Diarize** on, the transcript is split into `Speaker 1:`, `Speaker 2:`, … lines. (Large uploads — over 25 MB — skip the inline player to limit memory; recordings and URLs always have one.)
+Progress is shown live in a status panel, with a toast when the batch finishes. Once a request completes, the **Transcript** and **JSON** tabs (right) display the response. Each transcript is topped with **Duration** and **Confidence** metric cards and a **Download transcript** button. A single result shows an audio player pinned above the scrollable text; multiple results are labeled and divided per file. With **Diarize** on, the transcript is split into color-coded `Speaker 1:`, `Speaker 2:`, … lines. (Large uploads — over 25 MB — show a notice instead of the inline player to limit memory; recordings and URLs always have one.)
 
 ## API
 
@@ -80,9 +80,10 @@ Medical dictation practice files from [NCH Software](https://www.nch.com.au/scri
 ## Testing
 
 ```bash
-uv run pytest        # tests
-uv run ruff check .  # lint
-uv run ty check .    # type check
+uv run pytest         # tests
+uv run ruff check .   # lint
+uv run ruff format .  # format
+uv run ty check .     # type check
 ```
 
 Tests mock the Deepgram client — no real API calls. The core is tested directly (`tests/test_transcribe.py`, `tests/test_results.py`), the Streamlit adapter in `tests/test_streamlit_app.py`, and the service in `tests/test_api.py` (auth, option pass-through, batch isolation, validation, size limits, and the error envelope).

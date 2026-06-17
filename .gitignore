@@ -1,6 +1,8 @@
 # Env (.env.example is the tracked template; .env holds real secrets)
 .env
 !.env.example
+# Streamlit secrets (.streamlit/config.toml theme is tracked; secrets.toml is not)
+.streamlit/secrets.toml
 .venv/
 
 # Caches
