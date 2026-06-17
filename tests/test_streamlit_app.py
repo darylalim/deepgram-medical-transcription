@@ -206,12 +206,19 @@ class TestProcessInputs:
         streamlit_app._process_inputs("test-key", [("a.wav", b"a"), ("b.wav", b"b")])
 
         mock_st.status.assert_called_once()
+        status = mock_st.status.return_value.__enter__.return_value
+        status.update.assert_any_call(
+            label="Transcribed 2/2", state="complete", expanded=False
+        )
 
     def test_toast_summarizes_full_success(self, mock_deepgram_cls, mock_st):
         streamlit_app._process_inputs("test-key", [("a.wav", b"a"), ("b.wav", b"b")])
 
         mock_st.toast.assert_called_once()
-        assert "2" in mock_st.toast.call_args.args[0]
+        msg = mock_st.toast.call_args.args[0]
+        assert "2" in msg
+        assert "failed" not in msg.lower()
+        assert mock_st.toast.call_args.kwargs["icon"] == ":material/check_circle:"
 
     def test_toast_reports_total_failure(self, mock_deepgram_cls, mock_st):
         mock_client = mock_deepgram_cls.return_value
@@ -221,6 +228,7 @@ class TestProcessInputs:
 
         mock_st.toast.assert_called_once()
         assert "fail" in mock_st.toast.call_args.args[0].lower()
+        assert mock_st.toast.call_args.kwargs["icon"] == ":material/error:"
 
     def test_toast_reports_partial_success(self, mock_deepgram_cls, mock_st):
         mock_client = mock_deepgram_cls.return_value
@@ -239,6 +247,7 @@ class TestProcessInputs:
         msg = mock_st.toast.call_args.args[0]
         assert "1/2" in msg
         assert "failed" in msg.lower()
+        assert mock_st.toast.call_args.kwargs["icon"] == ":material/warning:"
 
 
 class TestProcessUrls:
@@ -750,9 +759,10 @@ class TestMetrics:
 
         streamlit_app._display_metrics(response)
 
-        labels = [c.args[0] for c in mock_st.metric.call_args_list]
-        assert "Duration" in labels
-        assert "Confidence" in labels
+        # Assert the formatted value strings, not just the labels — the percent
+        # conversion and unit/precision formatting is the logic under test.
+        values = {c.args[0]: c.args[1] for c in mock_st.metric.call_args_list}
+        assert values == {"Duration": "3.5 s", "Confidence": "98.0%"}
 
     def test_no_metrics_when_response_has_no_results(self, mock_st):
         # A results-less response (no metadata duration, no alternative confidence)
@@ -773,8 +783,8 @@ class TestMetrics:
 
         streamlit_app._display_metrics(response)
 
-        labels = [c.args[0] for c in mock_st.metric.call_args_list]
-        assert labels == ["Duration"]
+        values = {c.args[0]: c.args[1] for c in mock_st.metric.call_args_list}
+        assert values == {"Duration": "4.0 s"}
 
 
 class TestTranscriptDownload:
@@ -815,13 +825,22 @@ class TestTranscriptDownload:
 class TestAppSmoke:
     """Run the whole script under a real Streamlit runtime (not the mock).
 
-    Catches the class of errors the whole-module ``mock_st`` MagicMock cannot:
-    invalid Material Symbol icons, ``set_page_config`` ordering, malformed form
-    structure, and the dynamic-tab ``.open`` access. No Deepgram call happens —
-    nothing clicks Run — so it never touches the network.
+    Catches the class of errors the whole-module ``mock_st`` MagicMock cannot.
+    Two runs:
+
+    - **empty state** — module load: ``set_page_config`` ordering, the ``st.form``
+      structure, and the dynamic-tab ``.open`` access.
+    - **seeded state** — renders the Transcript tab for a diarized result so the
+      ``:material/download:`` icon, the metric cards, the color-directive
+      transcript, and the dropped-playback caption execute for real (the
+      ``download_button`` icon is validated only here).
+
+    No Deepgram call happens — nothing clicks Run — so it never touches the
+    network. The toast/status icons fire only on a real batch and are not
+    exercised here.
     """
 
-    def test_script_runs_without_uncaught_exception(self):
+    def test_script_renders_clean_empty_and_seeded(self):
         # Run in a SEPARATE process: the function tests `import streamlit_app` at
         # module scope, which executes its module-level `st.form` once in bare mode
         # and leaves Streamlit's form-context state dirty in-process (a spurious
@@ -833,14 +852,51 @@ class TestAppSmoke:
 
         root = os.path.dirname(os.path.dirname(__file__))
         app = os.path.join(root, "streamlit_app.py")
-        code = (
-            "from streamlit.testing.v1 import AppTest\n"
-            f"at = AppTest.from_file({app!r}, default_timeout=30).run()\n"
-            "assert not at.exception, at.exception\n"
-            "assert at.title[0].value == 'Deepgram Medical Transcription'\n"
-        )
+        code = """
+import sys
+from unittest.mock import MagicMock
+from streamlit.testing.v1 import AppTest
+
+app = sys.argv[1]
+
+# 1) Empty state — exercises module load (set_page_config / form / dynamic-tab .open).
+at = AppTest.from_file(app, default_timeout=30).run()
+assert not at.exception, at.exception
+assert at.title[0].value == "Deepgram Medical Transcription"
+
+# 2) Seeded state — renders the Transcript tab for a diarized result so the
+#    download icon, metric cards, color transcript, and dropped-playback caption
+#    all run under the real runtime.
+def _word(text, speaker):
+    w = MagicMock()
+    w.punctuated_word = text
+    w.word = text
+    w.speaker = speaker
+    w.confidence = 0.9
+    w.start = 0.0
+    w.end = 1.0
+    return w
+
+alt = MagicMock()
+alt.transcript = "Hello. Hi."
+alt.confidence = 0.95
+alt.words = [_word("Hello.", 0), _word("Hi.", 1)]
+resp = MagicMock()
+resp.metadata.duration = 3.5
+resp.results.channels = [MagicMock(alternatives=[alt])]
+resp.model_dump_json.return_value = '{"results": "ok"}'
+
+seeded = AppTest.from_file(app, default_timeout=30)
+seeded.session_state["responses"] = [("sample.wav", resp)]
+seeded.session_state["audio_sources"] = [None]
+seeded.run()
+assert not seeded.exception, seeded.exception
+"""
         result = subprocess.run(
-            [sys.executable, "-c", code], cwd=root, capture_output=True, text=True
+            [sys.executable, "-c", code, app],
+            cwd=root,
+            capture_output=True,
+            text=True,
         )
 
         assert result.returncode == 0, result.stderr

@@ -71,7 +71,7 @@ def _playback_source(value: object) -> bytes | str | None:
 def _completion_toast(n_ok: int, total: int) -> None:
     """Fire a one-shot toast summarizing the finished batch."""
     if n_ok == total:
-        st.toast(f"Transcribed {n_ok} file(s)", icon=":material/check_circle:")
+        st.toast(f"Transcribed {n_ok} item(s)", icon=":material/check_circle:")
     elif n_ok:
         st.toast(
             f"Transcribed {n_ok}/{total}; {total - n_ok} failed",
@@ -264,6 +264,11 @@ def _display_metrics(response: Any) -> None:
             st.metric("Confidence", f"{confidence * 100:.1f}%", border=True)
 
 
+def _speaker_label(speaker: object) -> object:
+    """1-based display label for an integer speaker; non-int speakers pass through."""
+    return speaker + 1 if isinstance(speaker, int) else speaker
+
+
 def _display_transcript(response: Any) -> None:
     """Render one result's metrics then transcript (Markdown-escaped so it shows verbatim).
 
@@ -275,12 +280,12 @@ def _display_transcript(response: Any) -> None:
     segments = _diarized_segments(response)
     if segments:
         for speaker, text in segments:
-            if isinstance(speaker, int):
-                label = speaker + 1
-                color = _SPEAKER_COLORS[speaker % len(_SPEAKER_COLORS)]
-            else:
-                label = speaker
-                color = "gray"
+            color = (
+                _SPEAKER_COLORS[speaker % len(_SPEAKER_COLORS)]
+                if isinstance(speaker, int)
+                else "gray"
+            )
+            label = _speaker_label(speaker)
             st.markdown(
                 f":{color}-background[**Speaker {label}:**] {_escape_markdown(text)}"
             )
@@ -303,8 +308,7 @@ def _plain_transcript(response: Any) -> str:
     if segments:
         lines = []
         for speaker, text in segments:
-            label = speaker + 1 if isinstance(speaker, int) else speaker
-            lines.append(f"Speaker {label}: {text}")
+            lines.append(f"Speaker {_speaker_label(speaker)}: {text}")
         return "\n".join(lines)
     return _transcript_text(response) or ""
 
