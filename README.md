@@ -67,8 +67,6 @@ Both endpoints accept the same feature options as the UI (`smart_format`, `diari
 - **`streamlit_app.py`** — the Streamlit UI; a thin adapter over `nova/` that adds widgets, session state, and the renderers (which display speakers 1-based).
 - **`api/`** — the FastAPI service; bearer auth, fail-fast validation, per-item isolation, a process-wide concurrency gate, and PHI-safe logging.
 
-See `docs/plans/2026-06-12-fastapi-service-design.md` for the full design.
-
 ## Sample Audio
 
 Medical dictation practice files from [NCH Software](https://www.nch.com.au/scribe/practice.html):

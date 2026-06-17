@@ -102,7 +102,3 @@ Ruff lint config (`[tool.ruff.lint]`): selects `E`/`F`/`I`/`UP`/`B`; ignores `E5
 
 - **Response-type union**: the transcribe methods are typed to return `ListenV1Response | ListenV1AcceptedResponse`. Both front-ends only ever receive `ListenV1Response` (which has `results`) because they never pass `callback=`; `ListenV1AcceptedResponse` (callback/async mode) carries only `request_id` and no `results`. `nova.results.first_alternative` guards the `.results` access so the walkers degrade gracefully if that ever changes.
 - **Version**: pinned to `deepgram-sdk==7.3.0` (requires Python 3.10+, satisfied by this app's 3.12 floor). The pre-recorded REST surface and the response-type union are identical from v5 through v7; the breaking changes across those majors were confined to the websocket/streaming/TTS/agent APIs this app does not use (see [`docs/Migrating-v5-to-v6.md`](https://github.com/deepgram/deepgram-python-sdk/blob/main/docs/Migrating-v5-to-v6.md) / [`docs/Migrating-v6-to-v7.md`](https://github.com/deepgram/deepgram-python-sdk/blob/main/docs/Migrating-v6-to-v7.md) in the deepgram-python-sdk repo).
-
-## Design docs
-
-`docs/plans/2026-06-12-fastapi-service-design.md` — the accepted design this `nova/` + `api/` split was migrated to (numbered migration steps in §8). Async batches, a Streamlit HTTP-client mode, request-rate limiting, and containerization are deferred with explicit triggers in §9.
