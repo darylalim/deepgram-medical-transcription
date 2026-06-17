@@ -202,6 +202,26 @@ class TestProcessInputs:
         mock_st.progress.assert_called()
         mock_st.spinner.assert_not_called()
 
+    def test_drives_a_status_container(self, mock_deepgram_cls, mock_st):
+        streamlit_app._process_inputs("test-key", [("a.wav", b"a"), ("b.wav", b"b")])
+
+        mock_st.status.assert_called_once()
+
+    def test_toast_summarizes_full_success(self, mock_deepgram_cls, mock_st):
+        streamlit_app._process_inputs("test-key", [("a.wav", b"a"), ("b.wav", b"b")])
+
+        mock_st.toast.assert_called_once()
+        assert "2" in mock_st.toast.call_args.args[0]
+
+    def test_toast_reports_total_failure(self, mock_deepgram_cls, mock_st):
+        mock_client = mock_deepgram_cls.return_value
+        mock_client.listen.v1.media.transcribe_file.side_effect = Exception("fail")
+
+        streamlit_app._process_inputs("test-key", [("a.wav", b"a")])
+
+        mock_st.toast.assert_called_once()
+        assert "fail" in mock_st.toast.call_args.args[0].lower()
+
 
 class TestProcessUrls:
     """URL-specific wrapper behavior: labels and playback sources are the URLs."""
@@ -420,7 +440,10 @@ class TestDisplayTranscript:
 
         mock_st.markdown.assert_called_once_with("Life moves pretty fast really.")
 
-    def test_no_highlighting_metrics_or_json(self, mock_deepgram_cls, mock_st):
+    def test_flat_transcript_is_plain_no_raw_html(self, mock_deepgram_cls, mock_st):
+        # The non-diarized path renders the transcript as a single plain Markdown
+        # string: no color directives, no raw HTML, and no JSON in the transcript view.
+        # (Per-speaker color highlighting applies only to the diarized path.)
         response = (
             mock_deepgram_cls.return_value.listen.v1.media.transcribe_file.return_value
         )
@@ -428,9 +451,8 @@ class TestDisplayTranscript:
         streamlit_app._display_transcript(response)
 
         (markdown_arg,), markdown_kwargs = mock_st.markdown.call_args
-        assert "<mark>" not in markdown_arg
+        assert markdown_arg == "Life moves pretty fast really."
         assert "unsafe_allow_html" not in markdown_kwargs
-        mock_st.expander.assert_not_called()
         mock_st.json.assert_not_called()
 
     def test_escapes_markdown_metacharacters(self, mock_st):
@@ -484,9 +506,9 @@ class TestDiarizedTranscript:
 
         rendered = [c.args[0] for c in mock_st.markdown.call_args_list]
         assert rendered == [
-            "**Speaker 1:** Hello doctor.",
-            "**Speaker 2:** Hi there.",
-            "**Speaker 1:** Yes?",
+            ":blue-background[**Speaker 1:**] Hello doctor.",
+            ":green-background[**Speaker 2:**] Hi there.",
+            ":blue-background[**Speaker 1:**] Yes?",
         ]
         mock_st.caption.assert_not_called()
 
@@ -495,14 +517,18 @@ class TestDiarizedTranscript:
 
         streamlit_app._display_transcript(self._response(words))
 
-        mock_st.markdown.assert_called_once_with("**Speaker 1:** Note. Done.")
+        mock_st.markdown.assert_called_once_with(
+            ":blue-background[**Speaker 1:**] Note. Done."
+        )
 
     def test_speaker_text_is_markdown_escaped(self, mock_st):
         words = [mock_word("take *2*", 0.9, speaker=0)]
 
         streamlit_app._display_transcript(self._response(words))
 
-        mock_st.markdown.assert_called_once_with("**Speaker 1:** take \\*2\\*")
+        mock_st.markdown.assert_called_once_with(
+            ":blue-background[**Speaker 1:**] take \\*2\\*"
+        )
 
     def test_unlabeled_word_continues_current_run(self, mock_st):
         # A mid-stream word missing an integer speaker is absorbed into the current
@@ -515,7 +541,9 @@ class TestDiarizedTranscript:
 
         streamlit_app._display_transcript(self._response(words))
 
-        mock_st.markdown.assert_called_once_with("**Speaker 1:** Patient reports pain.")
+        mock_st.markdown.assert_called_once_with(
+            ":blue-background[**Speaker 1:**] Patient reports pain."
+        )
 
     def test_falls_back_to_word_when_no_punctuated_word(self, mock_st):
         word = MagicMock()
@@ -525,7 +553,9 @@ class TestDiarizedTranscript:
 
         streamlit_app._display_transcript(self._response([word]))
 
-        mock_st.markdown.assert_called_once_with("**Speaker 1:** stat")
+        mock_st.markdown.assert_called_once_with(
+            ":blue-background[**Speaker 1:**] stat"
+        )
 
     def test_no_speaker_labels_falls_back_to_flat_transcript(self, mock_st):
         # Words without integer speakers (diarize off) -> flat transcript path.
@@ -612,6 +642,7 @@ class TestOutputPanel:
         streamlit_app._output_panel([("big.wav", response)], [None], render)
 
         mock_st.audio.assert_not_called()
+        mock_st.caption.assert_called_once_with(streamlit_app.PLAYBACK_TOO_LARGE)
         render.assert_called_once_with(response)
 
     def test_none_source_skipped_among_multiple(self, mock_st):
@@ -621,6 +652,7 @@ class TestOutputPanel:
         streamlit_app._output_panel(responses, [None, b"a"], render)
 
         mock_st.audio.assert_called_once_with(b"a", format="audio/wav")
+        mock_st.caption.assert_called_once_with(streamlit_app.PLAYBACK_TOO_LARGE)
         assert render.call_count == 2
 
 
@@ -671,3 +703,82 @@ class TestFeatureOpts:
             "diarize": True,
             "redact": [],
         }
+
+
+class TestMetrics:
+    """Per-result Duration / Confidence cards rendered above each transcript."""
+
+    def test_renders_duration_and_confidence(self, mock_deepgram_cls, mock_st):
+        response = (
+            mock_deepgram_cls.return_value.listen.v1.media.transcribe_file.return_value
+        )
+
+        streamlit_app._display_metrics(response)
+
+        labels = [c.args[0] for c in mock_st.metric.call_args_list]
+        assert "Duration" in labels
+        assert "Confidence" in labels
+
+    def test_no_metrics_when_response_has_no_results(self, mock_st):
+        # A results-less response (no metadata duration, no alternative confidence)
+        # renders no metric cards rather than blank/garbage values.
+        response = MagicMock(spec=["request_id"])
+
+        streamlit_app._display_metrics(response)
+
+        mock_st.metric.assert_not_called()
+
+
+class TestTranscriptDownload:
+    """The Transcript-tab download button (absent for the JSON renderer by design)."""
+
+    def test_no_button_when_no_responses(self, mock_st):
+        streamlit_app._transcript_download([])
+
+        mock_st.download_button.assert_not_called()
+
+    def test_button_carries_transcript_text(self, mock_deepgram_cls, mock_st):
+        response = (
+            mock_deepgram_cls.return_value.listen.v1.media.transcribe_file.return_value
+        )
+
+        streamlit_app._transcript_download([("a.wav", response)])
+
+        mock_st.download_button.assert_called_once()
+        data = mock_st.download_button.call_args.args[1]
+        assert "a.wav" in data
+        assert "Life moves pretty fast really." in data
+
+
+class TestAppSmoke:
+    """Run the whole script under a real Streamlit runtime (not the mock).
+
+    Catches the class of errors the whole-module ``mock_st`` MagicMock cannot:
+    invalid Material Symbol icons, ``set_page_config`` ordering, malformed form
+    structure, and the dynamic-tab ``.open`` access. No Deepgram call happens —
+    nothing clicks Run — so it never touches the network.
+    """
+
+    def test_script_runs_without_uncaught_exception(self):
+        # Run in a SEPARATE process: the function tests `import streamlit_app` at
+        # module scope, which executes its module-level `st.form` once in bare mode
+        # and leaves Streamlit's form-context state dirty in-process (a spurious
+        # "forms cannot be nested" on a later in-process run). A clean subprocess
+        # exercises the real script faithfully.
+        import os
+        import subprocess
+        import sys
+
+        root = os.path.dirname(os.path.dirname(__file__))
+        app = os.path.join(root, "streamlit_app.py")
+        code = (
+            "from streamlit.testing.v1 import AppTest\n"
+            f"at = AppTest.from_file({app!r}, default_timeout=30).run()\n"
+            "assert not at.exception, at.exception\n"
+            "assert at.title[0].value == 'Deepgram Medical Transcription'\n"
+        )
+        result = subprocess.run(
+            [sys.executable, "-c", code], cwd=root, capture_output=True, text=True
+        )
+
+        assert result.returncode == 0, result.stderr

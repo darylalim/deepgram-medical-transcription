@@ -1,0 +1,16 @@
+# Clinical-blue theme for the Deepgram Medical Transcription UI.
+# Locked to light mode (no [theme.dark]) for a consistent clinical look;
+# pure configuration — no Python, so it never touches the test suite.
+[theme]
+base = "light"
+primaryColor = "#2563EB"             # clinical blue: buttons, links, active tab underline
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F1F5F9" # widget / code / container backgrounds (slate-100)
+textColor = "#0F172A"                # slate-900 body text
+linkColor = "#2563EB"
+codeBackgroundColor = "#F1F5F9"
+borderColor = "#CBD5E1"              # slate-300 widget borders
+greenColor = "#16A34A"               # success accents
+redColor = "#DC2626"                 # error accents (st.error)
+baseRadius = "8px"
+showWidgetBorder = true
