@@ -222,6 +222,24 @@ class TestProcessInputs:
         mock_st.toast.assert_called_once()
         assert "fail" in mock_st.toast.call_args.args[0].lower()
 
+    def test_toast_reports_partial_success(self, mock_deepgram_cls, mock_st):
+        mock_client = mock_deepgram_cls.return_value
+
+        def fake_transcribe(request, **_):
+            if request == b"bad":
+                raise Exception("boom")
+            return MagicMock()
+
+        mock_client.listen.v1.media.transcribe_file.side_effect = fake_transcribe
+
+        streamlit_app._process_inputs(
+            "test-key", [("ok.wav", b"ok"), ("bad.wav", b"bad")]
+        )
+
+        msg = mock_st.toast.call_args.args[0]
+        assert "1/2" in msg
+        assert "failed" in msg.lower()
+
 
 class TestProcessUrls:
     """URL-specific wrapper behavior: labels and playback sources are the URLs."""
@@ -568,6 +586,23 @@ class TestDiarizedTranscript:
 
         mock_st.markdown.assert_called_once_with("plain words")
 
+    def test_speaker_label_color_cycles_by_index(self, mock_st):
+        # Each speaker index maps to _SPEAKER_COLORS, cycling (index 6 wraps to blue).
+        words = [
+            mock_word("a.", 0.9, speaker=0),
+            mock_word("b.", 0.9, speaker=2),
+            mock_word("c.", 0.9, speaker=6),
+        ]
+
+        streamlit_app._display_transcript(self._response(words))
+
+        rendered = [c.args[0] for c in mock_st.markdown.call_args_list]
+        assert rendered == [
+            ":blue-background[**Speaker 1:**] a.",
+            ":violet-background[**Speaker 3:**] b.",
+            ":blue-background[**Speaker 7:**] c.",
+        ]
+
 
 class TestDisplayJson:
     def test_renders_raw_json(self, mock_deepgram_cls, mock_st):
@@ -728,6 +763,19 @@ class TestMetrics:
 
         mock_st.metric.assert_not_called()
 
+    def test_renders_only_the_available_metric(self, mock_st):
+        # Duration present but no numeric confidence -> only the Duration card.
+        alt = MagicMock()
+        alt.confidence = "n/a"
+        response = MagicMock()
+        response.metadata.duration = 4.0
+        response.results.channels = [MagicMock(alternatives=[alt])]
+
+        streamlit_app._display_metrics(response)
+
+        labels = [c.args[0] for c in mock_st.metric.call_args_list]
+        assert labels == ["Duration"]
+
 
 class TestTranscriptDownload:
     """The Transcript-tab download button (absent for the JSON renderer by design)."""
@@ -748,6 +796,20 @@ class TestTranscriptDownload:
         data = mock_st.download_button.call_args.args[1]
         assert "a.wav" in data
         assert "Life moves pretty fast really." in data
+
+    def test_diarized_export_uses_plain_speaker_lines(self):
+        # The export is plain text (no color directives): "Speaker N: ..." per turn.
+        words = [
+            mock_word("Hello.", 0.9, speaker=0),
+            mock_word("Hi.", 0.9, speaker=1),
+        ]
+        response = MagicMock()
+        response.results.channels = [MagicMock(alternatives=[MagicMock(words=words)])]
+
+        assert (
+            streamlit_app._plain_transcript(response)
+            == "Speaker 1: Hello.\nSpeaker 2: Hi."
+        )
 
 
 class TestAppSmoke:
