@@ -465,12 +465,6 @@ with left_col:
                 format_func=lambda code: _LANGUAGES[code],
                 key="language",
             )
-            st.toggle(
-                "Smart Format",
-                value=DEFAULT_SMART_FORMAT,
-                help="Smart Format improves readability by applying additional formatting. When enabled, punctuation and paragraph breaks will be applied as well as formatting of other entities, such as dates, times, and numbers.",
-                key="smart_format",
-            )
             st.multiselect(
                 "Keyterm Prompting",
                 options=[],
@@ -479,6 +473,12 @@ with left_col:
                 placeholder="Add keyterms...",
                 help="Boosts recognition of important words or phrases, like names, product terms, or jargon. The model pays extra attention to these; you can include up to 100 keyterms per request.",
                 key="keyterms",
+            )
+            st.toggle(
+                "Smart Format",
+                value=DEFAULT_SMART_FORMAT,
+                help="Smart Format improves readability by applying additional formatting. When enabled, punctuation and paragraph breaks will be applied as well as formatting of other entities, such as dates, times, and numbers.",
+                key="smart_format",
             )
             st.toggle(
                 "Diarize",
