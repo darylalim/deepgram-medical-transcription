@@ -372,6 +372,32 @@ PLACEHOLDER = "Select audio above and run your request to see the response here.
 NO_TRANSCRIPT = "No transcript in this response."
 PLAYBACK_TOO_LARGE = "Inline playback unavailable for files over 25 MB."
 
+
+@st.fragment
+def _render_output() -> None:
+    """Render the Transcript/JSON output tabs as an isolated fragment.
+
+    Wrapped in `st.fragment` so switching between the Transcript and JSON tabs reruns
+    only this panel — not the whole script (the input tabs and the Features form).
+    Results are read from session state, so each fragment rerun reflects the latest
+    batch; a Run (in the Features form, outside this fragment) triggers a full rerun
+    that refreshes it. `on_change="rerun"` makes the tabs stateful so `.open` reflects
+    the active tab; `is not False` renders on None (non-stateful fallback) or True and
+    skips only the explicitly-hidden tab — so the JSON tab's per-response
+    `model_dump_json()` is not computed while the Transcript tab is showing.
+    """
+    responses = st.session_state.get("responses", [])
+    audio_sources = st.session_state.get("audio_sources", [])
+    tab_transcript, tab_json = st.tabs(["Transcript", "JSON"], on_change="rerun")
+    if tab_transcript.open is not False:
+        with tab_transcript:
+            _transcript_download(responses)
+            _output_panel(responses, audio_sources, _display_transcript)
+    if tab_json.open is not False:
+        with tab_json:
+            _output_panel(responses, audio_sources, _display_json)
+
+
 st.set_page_config(
     page_title="Deepgram Medical Transcription",
     page_icon="🩺",
@@ -479,17 +505,4 @@ with left_col:
             _run(api_key, uploaded_files, recording, url_text)
 
 with right_col:
-    responses = st.session_state.get("responses", [])
-    audio_sources = st.session_state.get("audio_sources", [])
-    # on_change="rerun" makes the tabs stateful so .open reflects the active tab;
-    # `is not False` renders on None (non-stateful fallback) or True and skips only the
-    # explicitly-hidden tab — so the JSON tab's per-response model_dump_json() is not
-    # computed while the Transcript tab is showing.
-    tab_transcript, tab_json = st.tabs(["Transcript", "JSON"], on_change="rerun")
-    if tab_transcript.open is not False:
-        with tab_transcript:
-            _transcript_download(responses)
-            _output_panel(responses, audio_sources, _display_transcript)
-    if tab_json.open is not False:
-        with tab_json:
-            _output_panel(responses, audio_sources, _display_json)
+    _render_output()
