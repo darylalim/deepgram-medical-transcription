@@ -1,8 +1,7 @@
-"""Deepgram option building and concurrent batch transcription for every front-end."""
+"""Deepgram option building and concurrent batch transcription for the Streamlit UI."""
 
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from contextlib import AbstractContextManager
 from dataclasses import dataclass
 from typing import Any
 
@@ -27,21 +26,17 @@ def build_options(
     measurements: bool = DEFAULT_MEASUREMENTS,
     diarize: bool = DEFAULT_DIARIZE,
     redact: list[str] | None = None,
-    timeout_in_seconds: int | None = None,  # API-only; the UI never passes it
 ) -> dict[str, Any]:
     """Build the kwargs dict passed to the Deepgram transcribe call.
 
     `model` and `smart_format` are always sent; off-by-default features are sent only
     when enabled (Deepgram defaults them off). Dictation requires punctuation, so it
     forces `punctuate=True`. `redact` (typed as a single str by the SDK) goes through
-    `request_options` as repeated query params; `timeout_in_seconds` merges into the
-    same `request_options` dict, which is omitted entirely when both are unset.
+    `request_options` as repeated query params, which is omitted entirely when unset.
     """
     request_options: dict[str, Any] = {}
     if redact:
         request_options["additional_query_parameters"] = {"redact": redact}
-    if timeout_in_seconds is not None:
-        request_options["timeout_in_seconds"] = timeout_in_seconds
     return {
         "model": MODEL,
         "smart_format": smart_format,
@@ -60,7 +55,7 @@ class ItemResult:
     """One batch item's outcome, tagged with its input index for order restoration.
 
     `error` holds `str(exc)` with no prefix — the calling adapter (Streamlit's
-    `st.error`, the API's per-item envelope) owns how it is presented.
+    `st.error`) owns how it is presented.
     """
 
     index: int
@@ -78,7 +73,6 @@ def transcribe_batch(
     client_cls: Callable[..., Any] | None = None,
     as_completed_fn: Callable[..., Any] | None = None,
     max_concurrency: int = MAX_CONCURRENCY,
-    gate: AbstractContextManager[Any] | None = None,
     on_progress: Callable[[int, int], None] | None = None,
 ) -> list[ItemResult]:
     """Transcribe a batch concurrently with one shared client; return results in input order.
@@ -87,12 +81,10 @@ def transcribe_batch(
     and `options` (from `build_options`) is merged onto every call. `client_cls` and
     `as_completed_fn` default to this module's globals resolved **at call time** (not as
     def-time defaults), so `patch("nova.transcribe.DeepgramClient")` intercepts the
-    default while in-process callers (the Streamlit wrapper) inject their own module
-    globals as seams. An optional `gate` context manager wraps each upstream call for
-    process-wide concurrency limiting (`None` is a no-op, leaving the in-process path
-    unchanged); `on_progress(done, total)` fires once per completion (success or
-    failure). Per-item exceptions are captured as `ItemResult(error=...)` so one
-    failure never aborts the batch; results are sorted back into input order.
+    default while the in-process Streamlit wrapper injects its own module globals as
+    seams. `on_progress(done, total)` fires once per completion (success or failure).
+    Per-item exceptions are captured as `ItemResult(error=...)` so one failure never
+    aborts the batch; results are sorted back into input order.
     """
     if client_cls is None:
         client_cls = DeepgramClient
@@ -103,10 +95,7 @@ def transcribe_batch(
     transcribe = getattr(client.listen.v1.media, method)
 
     def _call(call_kwargs: dict[str, Any]) -> Any:
-        if gate is None:
-            return transcribe(**call_kwargs, **options)
-        with gate:
-            return transcribe(**call_kwargs, **options)
+        return transcribe(**call_kwargs, **options)
 
     total = len(items)
     results: list[ItemResult] = []

@@ -1,4 +1,3 @@
-import threading
 from unittest.mock import MagicMock, patch
 
 from nova.transcribe import build_options, transcribe_batch
@@ -76,19 +75,6 @@ class TestBuildOptions:
 
     def test_redact_omitted_when_empty(self):
         assert "request_options" not in build_options(redact=[])
-
-    def test_timeout_merges_into_request_options(self):
-        assert build_options(timeout_in_seconds=600)["request_options"] == {
-            "timeout_in_seconds": 600
-        }
-
-    def test_timeout_and_redact_share_one_request_options(self):
-        assert build_options(redact=["pii"], timeout_in_seconds=600)[
-            "request_options"
-        ] == {
-            "additional_query_parameters": {"redact": ["pii"]},
-            "timeout_in_seconds": 600,
-        }
 
 
 class TestTranscribeBatch:
@@ -216,52 +202,3 @@ class TestTranscribeBatch:
                 on_progress=lambda done, total: calls.append((done, total)),
             )
         assert sorted(calls) == [(1, 2), (2, 2)]
-
-    def test_gate_entered_per_item_without_leaking_into_kwargs(self):
-        class Gate:
-            def __init__(self) -> None:
-                self.lock = threading.Lock()
-                self.entered = 0
-
-            def __enter__(self):
-                with self.lock:
-                    self.entered += 1
-                return self
-
-            def __exit__(self, *_exc):
-                return False
-
-        gate = Gate()
-        with patch("nova.transcribe.DeepgramClient") as cls:
-            cls.return_value.listen.v1.media.transcribe_url.return_value = "R"
-            transcribe_batch(
-                "k",
-                [("u1", {"url": "u1"}), ("u2", {"url": "u2"})],
-                "transcribe_url",
-                options=OPTS,
-                gate=gate,
-            )
-        assert gate.entered == 2
-        for call in cls.return_value.listen.v1.media.transcribe_url.call_args_list:
-            assert set(call.kwargs) == {"url", "model", "smart_format"}
-
-    def test_gate_permit_released_on_failure(self):
-        # The gate's whole purpose: each permit is released even when the upstream call
-        # raises. A real BoundedSemaphore(2) must be fully replenished after both items
-        # fail — a call moved outside `with gate:` would leak permits and block here.
-        sem = threading.BoundedSemaphore(2)
-        with patch("nova.transcribe.DeepgramClient") as cls:
-            cls.return_value.listen.v1.media.transcribe_url.side_effect = Exception(
-                "boom"
-            )
-            results = transcribe_batch(
-                "k",
-                [("u1", {"url": "u1"}), ("u2", {"url": "u2"})],
-                "transcribe_url",
-                options=OPTS,
-                gate=sem,
-            )
-        assert all(r.error == "boom" for r in results)
-        assert sem.acquire(blocking=False) is True
-        assert sem.acquire(blocking=False) is True
-        assert sem.acquire(blocking=False) is False  # no over-release either

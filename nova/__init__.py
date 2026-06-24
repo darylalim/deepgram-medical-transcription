@@ -1,4 +1,5 @@
-"""Shared transcription core for the Deepgram medical transcription app.
+"""Transcription core for the Deepgram medical transcription app.
 
-Imports neither streamlit nor fastapi; both front-ends consume it in-process.
+Imports no streamlit; the UI consumes it in-process and the walkers/option builders
+are unit-tested directly.
 """

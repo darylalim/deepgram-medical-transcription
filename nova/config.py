@@ -1,4 +1,4 @@
-"""Transcription constants — the single source of truth for every front-end."""
+"""Transcription constants — the single source of truth for the Streamlit UI."""
 
 MODEL = "nova-3-medical"
 

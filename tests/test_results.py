@@ -4,7 +4,6 @@ from nova.results import (
     diarized_segments,
     first_alternative,
     transcript_text,
-    word_list,
 )
 from tests.helpers import mock_word
 
@@ -96,30 +95,3 @@ class TestDiarizedSegments:
             results=SimpleNamespace(channels=[SimpleNamespace(alternatives=[])])
         )
         assert diarized_segments(resp) is None
-
-
-class TestWordList:
-    def test_flattens_words_with_raw_zero_based_speaker(self):
-        words = [mock_word("Hi", 0.9, speaker=0, start=0.0, end=0.4)]
-        assert word_list(_resp(words)) == [
-            {"text": "Hi", "start": 0.0, "end": 0.4, "confidence": 0.9, "speaker": 0}
-        ]
-
-    def test_punctuated_word_falls_back_to_word(self):
-        w = SimpleNamespace(
-            punctuated_word=None,
-            word="stat",
-            start=1.0,
-            end=1.2,
-            confidence=0.7,
-            speaker=1,
-        )
-        assert word_list(_resp([w])) == [
-            {"text": "stat", "start": 1.0, "end": 1.2, "confidence": 0.7, "speaker": 1}
-        ]
-
-    def test_none_for_empty_words(self):
-        assert word_list(_resp([])) is None
-
-    def test_none_for_no_results(self):
-        assert word_list(_resp(has_results=False)) is None

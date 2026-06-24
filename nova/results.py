@@ -1,7 +1,7 @@
-"""Deepgram response walkers shared by the Streamlit UI and the API.
+"""Deepgram response walkers for the Streamlit UI.
 
-Pure getattr-guarded reads with no streamlit/fastapi imports, so both front-ends
-parse responses through the same code. Speaker values are Deepgram's native 0-based
+Pure getattr-guarded reads with no streamlit imports, kept separate from the renderer
+so they can be unit-tested directly. Speaker values are Deepgram's native 0-based
 integers; the +1 display offset lives only in the Streamlit renderer.
 """
 
@@ -59,30 +59,3 @@ def diarized_segments(response: Any) -> list[tuple[Any, str]] | None:
         else:
             segments[-1][1].append(token)
     return [(speaker, " ".join(tokens)) for speaker, tokens in segments]
-
-
-def word_list(response: Any) -> list[dict[str, Any]] | None:
-    """Flatten `alternatives[0].words` into plain dicts for the API's words array.
-
-    Each entry is `{text, start, end, confidence, speaker}`; `text` uses
-    `punctuated_word` falling back to `word` (the same token rule as
-    `diarized_segments`), and `speaker` is Deepgram's raw value (0-based int or None,
-    never the UI's +1 display offset). Returns None when the response has no usable
-    results or no words.
-    """
-    alternative = first_alternative(response)
-    if alternative is None:
-        return None
-    words = getattr(alternative, "words", None) or []
-    if not words:
-        return None
-    return [
-        {
-            "text": getattr(word, "punctuated_word", None) or getattr(word, "word", ""),
-            "start": getattr(word, "start", None),
-            "end": getattr(word, "end", None),
-            "confidence": getattr(word, "confidence", None),
-            "speaker": getattr(word, "speaker", None),
-        }
-        for word in words
-    ]
