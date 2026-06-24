@@ -1,26 +1,45 @@
-# Clinical-blue theme for the Deepgram Medical Transcription UI.
-# Locked to light mode (no [theme.dark]) for a consistent clinical look;
-# pure configuration — no Python, so it never touches the test suite.
+# Clinical theme for the Deepgram Medical Transcription UI.
+# Light + dark are both defined, which enables the in-app theme switcher (Settings
+# menu); the palette is one Tailwind-slate family, inverted for dark. Pure
+# configuration — no Python, so it never touches the test suite.
+
+# Mode-independent settings (apply to both light and dark).
 [theme]
-base = "light"
+baseRadius = "8px"
+showWidgetBorder = true
+linkUnderline = false                # color alone signals links — cleaner than underlines
+
+# Light mode — clinical blue on white.
+[theme.light]
 primaryColor = "#2563EB"             # clinical blue: buttons, links, active tab underline
 backgroundColor = "#FFFFFF"
 secondaryBackgroundColor = "#F1F5F9" # widget / code / container backgrounds (slate-100)
 textColor = "#0F172A"                # slate-900 body text
 linkColor = "#2563EB"
-linkUnderline = false                # color alone signals links — cleaner than underlines
 codeBackgroundColor = "#F1F5F9"
 borderColor = "#CBD5E1"              # slate-300 widget borders
-baseRadius = "8px"
-showWidgetBorder = true
-
 # Semantic palette — harmonizes the diarized speaker-label highlights
-# (`:{color}-background[**Speaker N:**]` cycled from _SPEAKER_COLORS in
-# streamlit_app.py) with the clinical theme, and backs status accents. Streamlit
-# auto-derives the light `-background` tints and readable text shades from these.
+# (`:{color}-background[**Speaker N:**]` from _SPEAKER_COLORS) and status accents.
 blueColor = "#2563EB"                # Speaker 1 (matches the clinical primary)
 greenColor = "#16A34A"               # Speaker 2 / success accents
 violetColor = "#7C3AED"              # Speaker 3
 orangeColor = "#EA580C"              # Speaker 4
 redColor = "#DC2626"                 # Speaker 5 / error accents (st.error)
 grayColor = "#475569"                # Speaker 6 / unlabeled-speaker fallback (slate-600)
+
+# Dark mode — clinical slate (light mode's slate tones inverted).
+[theme.dark]
+primaryColor = "#2563EB"             # kept — keeps 4.54:1 contrast with white button text
+backgroundColor = "#0F172A"          # slate-900 (deep clinical slate, not pure black)
+secondaryBackgroundColor = "#1E293B" # slate-800 widget / container backgrounds
+textColor = "#E2E8F0"                # slate-200 body text (13.8:1 on the background)
+linkColor = "#60A5FA"                # blue-400 — brightened for dark-bg readability
+codeBackgroundColor = "#1E293B"
+borderColor = "#334155"              # slate-700 widget borders
+# Semantic palette — brightened -400 shades so the auto-derived dark tints stay vivid.
+blueColor = "#60A5FA"                # Speaker 1
+greenColor = "#4ADE80"               # Speaker 2 / success accents
+violetColor = "#A78BFA"              # Speaker 3
+orangeColor = "#FB923C"              # Speaker 4
+redColor = "#F87171"                 # Speaker 5 / error accents (st.error)
+grayColor = "#94A3B8"                # Speaker 6 / unlabeled-speaker fallback (slate-400)
