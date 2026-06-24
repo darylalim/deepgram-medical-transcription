@@ -17,6 +17,8 @@ uv run ty check .                                               # Type check
 uv run pytest                                                    # Test
 ```
 
+When working with Python, invoke the relevant `/astral:<skill>` for uv, ty, and ruff to ensure best practices are followed.
+
 ## Architecture
 
 ### Core — `nova/` (imports no streamlit)
