@@ -8,9 +8,19 @@ backgroundColor = "#FFFFFF"
 secondaryBackgroundColor = "#F1F5F9" # widget / code / container backgrounds (slate-100)
 textColor = "#0F172A"                # slate-900 body text
 linkColor = "#2563EB"
+linkUnderline = false                # color alone signals links — cleaner than underlines
 codeBackgroundColor = "#F1F5F9"
 borderColor = "#CBD5E1"              # slate-300 widget borders
-greenColor = "#16A34A"               # success accents
-redColor = "#DC2626"                 # error accents (st.error)
 baseRadius = "8px"
 showWidgetBorder = true
+
+# Semantic palette — harmonizes the diarized speaker-label highlights
+# (`:{color}-background[**Speaker N:**]` cycled from _SPEAKER_COLORS in
+# streamlit_app.py) with the clinical theme, and backs status accents. Streamlit
+# auto-derives the light `-background` tints and readable text shades from these.
+blueColor = "#2563EB"                # Speaker 1 (matches the clinical primary)
+greenColor = "#16A34A"               # Speaker 2 / success accents
+violetColor = "#7C3AED"              # Speaker 3
+orangeColor = "#EA580C"              # Speaker 4
+redColor = "#DC2626"                 # Speaker 5 / error accents (st.error)
+grayColor = "#475569"                # Speaker 6 / unlabeled-speaker fallback (slate-600)
