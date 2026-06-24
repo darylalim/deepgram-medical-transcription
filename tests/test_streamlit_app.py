@@ -859,14 +859,7 @@ from streamlit.testing.v1 import AppTest
 
 app = sys.argv[1]
 
-# 1) Empty state — exercises module load (set_page_config / form / dynamic-tab .open).
-at = AppTest.from_file(app, default_timeout=30).run()
-assert not at.exception, at.exception
-assert at.title[0].value == "Deepgram Medical Transcription"
 
-# 2) Seeded state — renders the Transcript tab for a diarized result so the
-#    download icon, metric cards, color transcript, and dropped-playback caption
-#    all run under the real runtime.
 def _word(text, speaker):
     w = MagicMock()
     w.punctuated_word = text
@@ -877,20 +870,55 @@ def _word(text, speaker):
     w.end = 1.0
     return w
 
-alt = MagicMock()
-alt.transcript = "Hello. Hi."
-alt.confidence = 0.95
-alt.words = [_word("Hello.", 0), _word("Hi.", 1)]
-resp = MagicMock()
-resp.metadata.duration = 3.5
-resp.results.channels = [MagicMock(alternatives=[alt])]
-resp.model_dump_json.return_value = '{"results": "ok"}'
 
+def _resp(transcript, words, duration, confidence):
+    alt = MagicMock()
+    alt.transcript = transcript
+    alt.confidence = confidence
+    alt.words = words
+    r = MagicMock()
+    r.metadata.duration = duration
+    r.results.channels = [MagicMock(alternatives=[alt])]
+    r.model_dump_json.return_value = '{"results": "ok"}'
+    return r
+
+
+# 1) Empty state — module load (set_page_config / form / dynamic-tab .open) plus the
+#    idle UI: the placeholder caption and a Run button disabled with no input selected.
+at = AppTest.from_file(app, default_timeout=30).run()
+assert not at.exception, at.exception
+assert at.title[0].value == "Deepgram Medical Transcription"
+assert any("Select audio above" in c.value for c in at.caption), [c.value for c in at.caption]
+run = [b for b in at.button if b.label == "Run"]
+assert run and run[0].disabled, "Run should be disabled with no audio input"
+
+# 2) Seeded diarized result — asserts the real rendered output: 1-based,
+#    color-highlighted speaker lines; Duration + Confidence metric cards; and the
+#    dropped-playback caption (audio_source is None).
+diar = _resp("Hello. Hi.", [_word("Hello.", 0), _word("Hi.", 1)], 3.5, 0.95)
 seeded = AppTest.from_file(app, default_timeout=30)
-seeded.session_state["responses"] = [("sample.wav", resp)]
+seeded.session_state["responses"] = [("sample.wav", diar)]
 seeded.session_state["audio_sources"] = [None]
 seeded.run()
 assert not seeded.exception, seeded.exception
+assert [m.value for m in seeded.markdown] == [
+    ":blue-background[**Speaker 1:**] Hello.",
+    ":green-background[**Speaker 2:**] Hi.",
+], [m.value for m in seeded.markdown]
+assert [m.label for m in seeded.metric] == ["Duration", "Confidence"]
+assert [m.value for m in seeded.metric] == ["3.5 s", "95.0%"]
+assert any("Inline playback unavailable" in c.value for c in seeded.caption)
+
+# 3) Seeded flat (non-diarized) result — the other render branch: a plain escaped
+#    transcript with no speaker labels.
+flat = _resp("Patient is stable.", [_word("Patient", None)], 12.0, 0.88)
+flat_at = AppTest.from_file(app, default_timeout=30)
+flat_at.session_state["responses"] = [("note.wav", flat)]
+flat_at.session_state["audio_sources"] = [None]
+flat_at.run()
+assert not flat_at.exception, flat_at.exception
+assert [m.value for m in flat_at.markdown] == ["Patient is stable."]
+assert not any("Speaker" in m.value for m in flat_at.markdown)
 """
         result = subprocess.run(
             [sys.executable, "-c", code, app],
