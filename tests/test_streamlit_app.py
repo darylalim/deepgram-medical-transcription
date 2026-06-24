@@ -109,7 +109,7 @@ class TestProcessInputs:
         )
 
         mock_st.error.assert_called_once_with(
-            "Transcription failed for bad.wav: API error"
+            "Transcription failed for bad.wav: API error", icon=":material/error:"
         )
         assert mock_st.session_state["responses"] == [("good.wav", good_response)]
         assert mock_st.session_state["audio_sources"] == [b"good"]
@@ -193,7 +193,7 @@ class TestProcessInputs:
         streamlit_app._process_inputs("test-key", [("bad.wav", b"bad")])
 
         mock_st.error.assert_called_once_with(
-            "Transcription failed for bad.wav: timeout"
+            "Transcription failed for bad.wav: timeout", icon=":material/error:"
         )
 
     def test_uses_progress_bar_not_spinner(self, mock_deepgram_cls, mock_st):
@@ -283,7 +283,8 @@ class TestProcessUrls:
         )
 
         mock_st.error.assert_called_once_with(
-            "Transcription failed for https://example.com/bad.wav: API error"
+            "Transcription failed for https://example.com/bad.wav: API error",
+            icon=":material/error:",
         )
         assert mock_st.session_state["responses"] == [
             ("https://example.com/good.wav", good_response)
@@ -337,7 +338,7 @@ class TestRun:
         streamlit_app._run("key", files, None, "")
 
         mock_st.error.assert_called_once_with(
-            "Too many files. Maximum is 100 per batch."
+            "Too many files. Maximum is 100 per batch.", icon=":material/error:"
         )
         media = mock_deepgram_cls.return_value.listen.v1.media
         media.transcribe_file.assert_not_called()
@@ -347,7 +348,9 @@ class TestRun:
         ok = mock_upload("ok.wav", b"ok")
         streamlit_app._run("key", [big, ok], None, "")
 
-        mock_st.error.assert_called_once_with("Skipped (exceeds 2 GiB): big.wav")
+        mock_st.error.assert_called_once_with(
+            "Skipped (exceeds 2 GiB): big.wav", icon=":material/error:"
+        )
         media = mock_deepgram_cls.return_value.listen.v1.media
         media.transcribe_file.assert_called_once()
         assert mock_st.session_state["responses"][0][0] == "ok.wav"
@@ -357,7 +360,9 @@ class TestRun:
         rec.getvalue.return_value = wav_bytes(streamlit_app.MAX_RECORDING_SECONDS + 100)
         streamlit_app._run("key", [], rec, "")
 
-        mock_st.error.assert_called_once_with("Recording exceeds the 10-minute limit.")
+        mock_st.error.assert_called_once_with(
+            "Recording exceeds the 10-minute limit.", icon=":material/error:"
+        )
         media = mock_deepgram_cls.return_value.listen.v1.media
         media.transcribe_file.assert_not_called()
 
@@ -375,14 +380,18 @@ class TestRun:
         rec.getvalue.return_value = b"not-a-wav"
         streamlit_app._run("key", [], rec, "")
 
-        mock_st.error.assert_called_once_with("Could not read the recording.")
+        mock_st.error.assert_called_once_with(
+            "Could not read the recording.", icon=":material/error:"
+        )
         media = mock_deepgram_cls.return_value.listen.v1.media
         media.transcribe_file.assert_not_called()
 
     def test_invalid_urls_error(self, mock_deepgram_cls, mock_st):
         streamlit_app._run("key", [], None, "ftp://bad.com/a.wav")
 
-        mock_st.error.assert_called_once_with("Invalid URL(s): ftp://bad.com/a.wav")
+        mock_st.error.assert_called_once_with(
+            "Invalid URL(s): ftp://bad.com/a.wav", icon=":material/error:"
+        )
         media = mock_deepgram_cls.return_value.listen.v1.media
         media.transcribe_url.assert_not_called()
 

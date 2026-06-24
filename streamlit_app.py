@@ -126,7 +126,10 @@ def _transcribe_batch(
 
     for r in results:
         if r.error is not None:
-            st.error(f"Transcription failed for {r.label}: {r.error}")
+            st.error(
+                f"Transcription failed for {r.label}: {r.error}",
+                icon=":material/error:",
+            )
 
     # Always overwrite (even when empty) so a fully-failed run clears stale results.
     st.session_state["responses"] = [(r.label, r.response) for r in ok]
@@ -184,15 +187,22 @@ def _run(api_key: str, uploaded_files: list, recording: Any, url_text: str) -> N
         chosen, *ignored = present
         st.info(
             f"Multiple inputs detected; transcribing {chosen} and ignoring "
-            f"{', '.join(ignored)} (priority: Upload > Record > URL)."
+            f"{', '.join(ignored)} (priority: Upload > Record > URL).",
+            icon=":material/info:",
         )
     if uploaded_files:
         if len(uploaded_files) > MAX_UPLOADS:
-            st.error(f"Too many files. Maximum is {MAX_UPLOADS} per batch.")
+            st.error(
+                f"Too many files. Maximum is {MAX_UPLOADS} per batch.",
+                icon=":material/error:",
+            )
             return
         oversized = [f.name for f in uploaded_files if f.size > MAX_FILE_SIZE]
         if oversized:
-            st.error(f"Skipped (exceeds 2 GiB): {', '.join(oversized)}")
+            st.error(
+                f"Skipped (exceeds 2 GiB): {', '.join(oversized)}",
+                icon=":material/error:",
+            )
         valid = [
             (f.name, f.getvalue()) for f in uploaded_files if f.size <= MAX_FILE_SIZE
         ]
@@ -207,23 +217,27 @@ def _run(api_key: str, uploaded_files: list, recording: Any, url_text: str) -> N
                     raise wave.Error("zero framerate")
                 duration = wf.getnframes() / framerate
         except (wave.Error, EOFError):
-            st.error("Could not read the recording.")
+            st.error("Could not read the recording.", icon=":material/error:")
             return
         if duration > MAX_RECORDING_SECONDS:
-            st.error("Recording exceeds the 10-minute limit.")
+            st.error("Recording exceeds the 10-minute limit.", icon=":material/error:")
         else:
             _process_inputs(api_key, [("Recording", audio_bytes)], **_feature_opts())
     elif url_text.strip():
         valid, invalid = _parse_urls(url_text)
         if invalid:
-            st.error(f"Invalid URL(s): {', '.join(invalid)}")
+            st.error(f"Invalid URL(s): {', '.join(invalid)}", icon=":material/error:")
         elif len(valid) > MAX_UPLOADS:
-            st.error(f"Too many URLs. Maximum is {MAX_UPLOADS} per batch.")
+            st.error(
+                f"Too many URLs. Maximum is {MAX_UPLOADS} per batch.",
+                icon=":material/error:",
+            )
         else:
             no_ext = [u for u in valid if not has_audio_extension(u)]
             if no_ext:
                 st.warning(
-                    f"Unrecognized audio extension (supported: {', '.join(_AUDIO_TYPES)}): {', '.join(no_ext)}"
+                    f"Unrecognized audio extension (supported: {', '.join(_AUDIO_TYPES)}): {', '.join(no_ext)}",
+                    icon=":material/warning:",
                 )
             _process_urls(api_key, valid, **_feature_opts())
 
@@ -408,7 +422,10 @@ st.title("Deepgram Medical Transcription")
 
 api_key = os.environ.get("DEEPGRAM_API_KEY", "")
 if not api_key:
-    st.warning("Deepgram API key required. Get a free key at https://deepgram.com.")
+    st.warning(
+        "Deepgram API key required. Get a free key at https://deepgram.com.",
+        icon=":material/key:",
+    )
     api_key = st.text_input(
         "Deepgram API Key",
         type="password",
