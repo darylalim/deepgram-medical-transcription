@@ -4,14 +4,13 @@
 
 Transcribe medical audio with the Deepgram Nova-3 Medical model.
 
-A Streamlit-free shared core (`nova/`) is consumed **in-process** by two front-ends — the Streamlit UI (`streamlit_app.py`) and a FastAPI service (`api/`). Both build options, run batches, and parse responses through the same core code, so the two front-ends cannot drift.
+A Streamlit-free core (`nova/`) is consumed **in-process** by the Streamlit UI (`streamlit_app.py`): it builds options, runs batches, and parses responses, keeping that logic framework-free and unit-testable independent of the UI.
 
 ## Commands
 
 ```bash
 uv sync                                                          # Install dependencies
 uv run streamlit run streamlit_app.py                           # Run the Streamlit UI
-uv run uvicorn api.main:app --host 127.0.0.1 --port 8000 --no-access-log  # Run the API
 uv run ruff check .                                              # Lint
 uv run ruff format .                                            # Format
 uv run ty check .                                               # Type check
@@ -20,14 +19,14 @@ uv run pytest                                                    # Test
 
 ## Architecture
 
-### Shared core — `nova/` (imports neither streamlit nor fastapi)
+### Core — `nova/` (imports no streamlit)
 
 - **`config.py`** — the single source of truth for constants: `MODEL` (`nova-3-medical`), `LANGUAGES` (8 English variants — Nova-3 Medical is English-only), `REDACT_GROUPS` ordered **PII-first** (`pii`/`phi`/`pci`/`numbers`; PHI labeled to flag that it strips clinical content), `DEFAULT_LANGUAGE`/`DEFAULT_SMART_FORMAT`/`DEFAULT_DICTATION`/`DEFAULT_MEASUREMENTS`/`DEFAULT_DIARIZE`, `MAX_KEYTERMS`/`MAX_UPLOADS`/`MAX_CONCURRENCY`/`MAX_FILE_SIZE`, `AUDIO_EXTENSIONS`, and `has_audio_extension()`.
 - **`transcribe.py`**:
-  - `build_options(*, keyterms=None, language=None, smart_format, dictation, measurements, diarize, redact=None, timeout_in_seconds=None)` — the kwargs dict for the Deepgram call. `model` + `smart_format` are **always** sent; off-by-default features are sent only when enabled — `diarize`/`measurements`, and `dictation` (which also forces `punctuate=True`) — plus `keyterm`/`language` only when truthy. `redact` (typed as a single `str` by the SDK) goes through `request_options["additional_query_parameters"]={"redact":[...]}`; `timeout_in_seconds` (API-only — the UI never passes it) merges into the **same** `request_options` dict, which is omitted entirely when both are unset.
+  - `build_options(*, keyterms=None, language=None, smart_format, dictation, measurements, diarize, redact=None)` — the kwargs dict for the Deepgram call. `model` + `smart_format` are **always** sent; off-by-default features are sent only when enabled — `diarize`/`measurements`, and `dictation` (which also forces `punctuate=True`) — plus `keyterm`/`language` only when truthy. `redact` (typed as a single `str` by the SDK) goes through `request_options["additional_query_parameters"]={"redact":[...]}`, which is omitted entirely when unset.
   - `ItemResult` dataclass `{index, label, response, error}` — `error` is `str(exc)` with no prefix; the calling adapter owns presentation.
-  - `transcribe_batch(api_key, items, method, *, options, client_cls=None, as_completed_fn=None, max_concurrency=MAX_CONCURRENCY, gate=None, on_progress=None)` — one shared client per batch via `ThreadPoolExecutor`; merges `options` onto each item; captures per-item exceptions (one failure never aborts the batch); sorts results back into input order. **`client_cls`/`as_completed_fn` default to `None` and resolve to this module's globals at *call time*** (not def-time) so API tests can `patch("nova.transcribe.DeepgramClient")` while in-process callers inject their own globals as seams. Optional `gate` is a process-wide concurrency context manager (no-op when `None`); `on_progress(done, total)` fires once per completion.
-- **`results.py`** — getattr-guarded response walkers (no `st.*`): `first_alternative`, `transcript_text` (→ `.transcript` or `None`), `diarized_segments` (groups `alternatives[0].words` into consecutive `(speaker, text)` runs, gated on an integer `words[0].speaker`), and `word_list` (flattened `{text, start, end, confidence, speaker}`; `text` uses `punctuated_word` falling back to `word`). **Speakers are Deepgram's native 0-based ints throughout the core and the API; the `+1` display offset lives only in the Streamlit renderer.**
+  - `transcribe_batch(api_key, items, method, *, options, client_cls=None, as_completed_fn=None, max_concurrency=MAX_CONCURRENCY, on_progress=None)` — one shared client per batch via `ThreadPoolExecutor`; merges `options` onto each item; captures per-item exceptions (one failure never aborts the batch); sorts results back into input order. **`client_cls`/`as_completed_fn` default to `None` and resolve to this module's globals at *call time*** (not def-time) so `tests/test_transcribe.py` can `patch("nova.transcribe.DeepgramClient")` while the in-process UI wrapper injects its own globals as seams. `on_progress(done, total)` fires once per completion.
+- **`results.py`** — getattr-guarded response walkers (no `st.*`): `first_alternative`, `transcript_text` (→ `.transcript` or `None`), and `diarized_segments` (groups `alternatives[0].words` into consecutive `(speaker, text)` runs, gated on an integer `words[0].speaker`; `text` uses `punctuated_word` falling back to `word`). **Speakers are Deepgram's native 0-based ints throughout the core; the `+1` display offset lives only in the Streamlit renderer.**
 
 ### Streamlit UI — `streamlit_app.py`
 
@@ -43,62 +42,42 @@ Visual theming lives in `.streamlit/config.toml` (`[theme]`, clinical-blue palet
 6. Renderers: `_display_transcript` (a `_display_metrics` row of `st.metric` cards — Duration + alternative-level Confidence, via `_result_metrics`, rendered only when available — then, with diarization, one Markdown-escaped per-speaker line **color-highlighted** by speaker index via native `:{color}-background[**Speaker N:**]` directives from `_SPEAKER_COLORS`, **1-based** display; otherwise the flat escaped transcript, or `st.caption(NO_TRANSCRIPT)`), `_display_json` (`st.json(response.model_dump_json())` — deliberately kept minimal: no markdown/expander/download), `_transcript_download` (a Transcript-tab `st.download_button` exporting all transcripts as `.txt` via `_plain_transcript`), `_output_panel` (pinned players + fixed-height container or placeholder; `None` source → `PLAYBACK_TOO_LARGE` caption), `_display_audio` (MIME from extension via `_AUDIO_MIME`, default wav; URL passed through), `_escape_markdown`. Per-speaker color highlighting uses native Markdown color directives (no raw HTML/CSS), so it stays test-safe.
 7. Layout: `layout="wide"`; audio input tabs (Upload ≤100 files/2 GiB each; Record `st.audio_input` ≤10 min; URL HTTP/HTTPS ≤100) full-width above; left **Features** controls wrapped in an `st.form("features", border=False)` (so feature edits don't rerun until submit) — Language, Smart Format, Keyterm Prompting, Diarize, Dictation, Measurements, Redact — closed by a full-width `st.form_submit_button("Run", width="stretch")` carrying a `help=` hint when disabled; right **Transcript**/**JSON** tabs via `_output_panel`, with `st.tabs(…, on_change="rerun")` + an `if tab.open is not False:` guard so the hidden tab's body (notably the JSON tab's per-response `model_dump_json()`) is skipped at runtime (inert under the test mock, where `.open` is truthy).
 
-### FastAPI service — `api/`
-
-Consumes `nova/` in-process; holds **no** transcription logic of its own, so it cannot drift from the UI.
-
-- **`settings.py`** — env config read fresh per call (testable): `DEEPGRAM_API_KEY`, `API_AUTH_TOKENS` (comma-separated), `API_HOST`, `MAX_REQUEST_BYTES` (default `MAX_FILE_SIZE` + 16 MiB), `DEEPGRAM_TIMEOUT_SECONDS` (600), `GLOBAL_MAX_CONCURRENCY` (5). `is_loopback()` gates the docs routes and the fail-closed startup check.
-- **`auth.py`** — `require_token` dependency: a bearer token is **always required** (even on loopback). Constant-time, non-short-circuiting comparison against each configured token; **503** `missing_auth_tokens` when none are configured, **401** `missing_token`/`invalid_token` (+ `WWW-Authenticate: Bearer`) otherwise.
-- **`schemas.py`** — `TranscriptionOptions` (extra fields forbidden, so a client-supplied `model` is rejected — the model is pinned server-side), validated against `nova.config`; domain-rule failures raise `PydanticCustomError` whose `type` **is** the machine-readable envelope `code`. Also `UrlBatchRequest`, the response models (`ItemOut`/`Segment`/`ItemError`/`BatchSummary`/`BatchResponse`), `ErrorEnvelope`/`ErrorDetail`, and the `ApiError` exception.
-- **`main.py`**:
-  - `GET /healthz` — no auth, never calls Deepgram.
-  - `POST /v1/transcriptions/urls` (JSON; URLs are verbatim strings, 1–100) and `POST /v1/transcriptions/files` (multipart; 1–100 `files` parts + option form fields parsed into the same `TranscriptionOptions`). Both require bearer auth, **validate fail-fast before any Deepgram call**, then run `transcribe_batch` off the event loop via `run_in_threadpool`, gated by a process-global `BoundedSemaphore` so N concurrent requests can't multiply into 5×N upstream calls.
-  - Response `{model, status, summary, warnings, results[]}` — **200 even when every item failed**; `status` is `completed` / `partially_completed` / `failed` (== every item failed). Per-item `{index, name, status, transcript, segments, words, request_id, duration, raw, error}` with **0-based speakers**; `include_words`/`include_raw` are opt-in (default off). Per-item failures carry `{type, code, message}` (`upstream_error`/`upstream_timeout`/`file_too_large`).
-  - Error envelope `{error: {type, code, message, request_id}}` via handlers for `ApiError`, `RequestValidationError`, `StarletteHTTPException` (routing 404/405 → `not_found`/`method_not_allowed`), and a scrubbed catch-all 500.
-  - X-Request-ID middleware (server-generated, echoed back) + body-size guard: a Content-Length **precheck plus a capped streamed read during multipart parsing** (defense against an absent/false Content-Length) → **413** `request_body_too_large`. Per-file `> MAX_FILE_SIZE` → per-item `file_too_large` (skip-and-continue). URLs lacking a recognized audio extension are transcribed but listed in `warnings`. Fail-closed startup refuses a non-loopback bind without `API_AUTH_TOKENS`; `/docs`+`/openapi.json` are disabled off-loopback.
-
 ## Configuration
 
-Env vars live in `.env` (gitignored; see `.env.example`): `DEEPGRAM_API_KEY` (both front-ends, server-side only), `API_AUTH_TOKENS` (API only; generate with `python -c "import secrets; print(secrets.token_urlsafe(32))"`), and optional `API_HOST` / `MAX_REQUEST_BYTES` / `DEEPGRAM_TIMEOUT_SECONDS` / `GLOBAL_MAX_CONCURRENCY`.
+The only env var is `DEEPGRAM_API_KEY` (server-side only), loaded from `.env` (gitignored; see `.env.example`) via python-dotenv; the UI also prompts for it inline if unset.
 
 The Streamlit UI's visual theme is non-secret config in `.streamlit/config.toml` (tracked); secrets (`.env`, `.streamlit/secrets.toml`) are gitignored.
 
-## API client guidance (synchronous batches)
-
-The transcription endpoints are synchronous — the connection stays open until the slowest item finishes. Set **generous read timeouts** (minutes per GB of audio; a full 100-item batch can take tens of minutes) and prefer several smaller batches if an HTTP client or intermediary enforces shorter limits. **URL batches are the sanctioned bulk path**; multi-gigabyte multipart batches are intentionally unsupported (the request-byte budget pins one maximal file per request).
-
 ## PHI logging policy (non-negotiable)
 
-- **Never log**: audio bytes, transcripts, segments, raw responses, request/response bodies; **keyterms** (log the count); **filenames** (log per-item index + byte size); **full URLs** (log scheme+host or a hash; strip query strings).
-- **Do log**: timestamp, route, status, latency, item counts, boolean feature flags, byte sizes, the server `X-Request-ID`, and Deepgram's `request_id`.
-- The `httpx` and `deepgram` loggers are pinned to `WARNING` (the SDK sends `keyterm`/`redact` as query params, so DEBUG URL logging would leak them). The 500 handler logs only the exception class; per-item upstream error text returns to the authed caller but logs keep class + status. Run uvicorn with `--no-access-log` (the app emits its own sanitized line). A **Deepgram BAA** is the operator's responsibility before real PHI flows through either front-end.
+- **Never log** audio bytes, transcripts, segments, raw responses, keyterms, filenames, or full URLs. Treat every Deepgram request/response as carrying PHI.
+- A **Deepgram BAA** is the operator's responsibility before real PHI flows through the app.
 
 ## Testing
 
 Tests mock `DeepgramClient` — no real API calls. **Two mock points, by design:**
 
 - **`streamlit_app.DeepgramClient`** — UI tests (the `_transcribe_batch` wrapper passes this module global as a seam).
-- **`nova.transcribe.DeepgramClient`** — API tests (the core resolves its `None`-default seam at call time).
+- **`nova.transcribe.DeepgramClient`** — core tests (the core resolves its `None`-default seam at call time, so `test_transcribe.py` patches the module global directly).
 
-- `conftest.py` (root) — adds repo root to `sys.path` so tests can `import streamlit_app`, `nova`, `api`.
+- `conftest.py` (root) — adds repo root to `sys.path` so tests can `import streamlit_app`, `nova`.
 - `tests/conftest.py` — `mock_deepgram_cls` (patches `streamlit_app.DeepgramClient`), `mock_st`.
 - `tests/helpers.py` — `mock_word` (incl. `start`/`end`), `mock_upload`, `wav_bytes`.
-- `tests/test_transcribe.py` — the core directly (patches `nova.transcribe.DeepgramClient`): `build_options` (the full option matrix — dictation→punctuate, redact + `timeout_in_seconds` merged into one `request_options`, omissions) and `transcribe_batch` (single-client reuse, option merging, input order incl. reversed completion, per-item error capture, the explicit `client_cls` seam override, `on_progress`, the `gate`).
-- `tests/test_results.py` — the walkers directly: `first_alternative`, `transcript_text`, `diarized_segments` (0-based grouping, `punctuated_word`→`word` fallback, the None cases), and `word_list`.
+- `tests/test_transcribe.py` — the core directly (patches `nova.transcribe.DeepgramClient`): `build_options` (the full option matrix — dictation→punctuate, redact via `request_options`, omissions) and `transcribe_batch` (single-client reuse, option merging, input order incl. reversed completion, per-item error capture, the explicit `client_cls` seam override, `on_progress`).
+- `tests/test_results.py` — the walkers directly: `first_alternative`, `transcript_text`, and `diarized_segments` (0-based grouping, `punctuated_word`→`word` fallback, the None cases).
 - `tests/test_streamlit_app.py` — UI-only: `_parse_urls`; the `_transcribe_batch` wrapper via `_process_inputs`/`_process_urls` (session state, large-upload playback drop, per-item `st.error` + format, progress bar, `st.status` container, `_completion_toast`, input order into session state); `_run` validation branches; `_feature_opts`; `_display_audio`; the renderers (flat plain-text path, **1-based** color-highlighted diarized display, `_display_metrics`, `_transcript_download`, `PLAYBACK_TOO_LARGE` caption). New `st.*` calls (`status`/`toast`/`metric`/`download_button`/dynamic-tab `.open`) degrade safely under the whole-module `mock_st` MagicMock; the lazy-tab skip is real-runtime-only (inert under the mock). The script is additionally smoke-tested under a real runtime via `streamlit.testing.v1.AppTest` (catches icon/page-config/form errors the mock can't).
-- `tests/test_api.py` — `TestClient` + `patch("nova.transcribe.DeepgramClient")`: auth (401/503, multi-token), every option toggle (incl. dictation→punctuate and redact + `timeout_in_seconds` merged into one `request_options`), batch order, partial failure, all-failed `status: "failed"`, **0-based segment speakers**, `include_raw`/`include_words`, fail-fast 422/400s, files/urls limits, 413 + the capped streamed read (`_read_capped`), and the error-envelope shape.
 
 ## Dependencies
 
 Managed by uv via `pyproject.toml` + `uv.lock`.
 
-Runtime: **deepgram-sdk** (v7), **streamlit**, **python-dotenv**, **fastapi**, **uvicorn[standard]**, **python-multipart**
+Runtime: **deepgram-sdk** (v7), **streamlit**, **python-dotenv**
 
-Dev: **ruff**, **ty**, **pytest**, **httpx** (FastAPI `TestClient`)
+Dev: **ruff**, **ty**, **pytest**
 
-Ruff lint config (`[tool.ruff.lint]`): selects `E`/`F`/`I`/`UP`/`B`; ignores `E501` (line length is formatter-driven); `combine-as-imports = true` (keeps the UI's aliased re-exports in one block); `flake8-bugbear.extend-immutable-calls` whitelists FastAPI's `Depends`/`File`/`Form` argument-default idiom.
+Ruff lint config (`[tool.ruff.lint]`): selects `E`/`F`/`I`/`UP`/`B`; ignores `E501` (line length is formatter-driven); `combine-as-imports = true` (keeps the UI's aliased re-exports in one block).
 
-**deepgram-sdk** notes (v7, project pins `7.3.0`): options are keyword args (not `PrerecordedOptions`), API key passed explicitly to `DeepgramClient(api_key=...)`, responses are Pydantic models. The namespaced client path is `client.listen.v1.media.transcribe_file(request=<bytes>)` / `transcribe_url(url=<str>)`; most options (`model`, `smart_format`, `keyterm`, `language`, `dictation`, `measurements`, `diarize`, `punctuate`) are typed keyword args. `redact` is typed as a single `str`, so multiple redaction groups go through `request_options={"additional_query_parameters": {"redact": [...]}}` (repeated query params); `RequestOptions` also carries `timeout_in_seconds` (used by the API).
+**deepgram-sdk** notes (v7, project pins `7.3.0`): options are keyword args (not `PrerecordedOptions`), API key passed explicitly to `DeepgramClient(api_key=...)`, responses are Pydantic models. The namespaced client path is `client.listen.v1.media.transcribe_file(request=<bytes>)` / `transcribe_url(url=<str>)`; most options (`model`, `smart_format`, `keyterm`, `language`, `dictation`, `measurements`, `diarize`, `punctuate`) are typed keyword args. `redact` is typed as a single `str`, so multiple redaction groups go through `request_options={"additional_query_parameters": {"redact": [...]}}` (repeated query params).
 
-- **Response-type union**: the transcribe methods are typed to return `ListenV1Response | ListenV1AcceptedResponse`. Both front-ends only ever receive `ListenV1Response` (which has `results`) because they never pass `callback=`; `ListenV1AcceptedResponse` (callback/async mode) carries only `request_id` and no `results`. `nova.results.first_alternative` guards the `.results` access so the walkers degrade gracefully if that ever changes.
+- **Response-type union**: the transcribe methods are typed to return `ListenV1Response | ListenV1AcceptedResponse`. The UI only ever receives `ListenV1Response` (which has `results`) because it never passes `callback=`; `ListenV1AcceptedResponse` (callback/async mode) carries only `request_id` and no `results`. `nova.results.first_alternative` guards the `.results` access so the walkers degrade gracefully if that ever changes.
 - **Version**: pinned to `deepgram-sdk==7.3.0` (requires Python 3.10+, satisfied by this app's 3.12 floor). The pre-recorded REST surface and the response-type union are identical from v5 through v7; the breaking changes across those majors were confined to the websocket/streaming/TTS/agent APIs this app does not use (see [`docs/Migrating-v5-to-v6.md`](https://github.com/deepgram/deepgram-python-sdk/blob/main/docs/Migrating-v5-to-v6.md) / [`docs/Migrating-v6-to-v7.md`](https://github.com/deepgram/deepgram-python-sdk/blob/main/docs/Migrating-v6-to-v7.md) in the deepgram-python-sdk repo).
