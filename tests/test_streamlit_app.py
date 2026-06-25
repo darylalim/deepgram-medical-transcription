@@ -403,6 +403,7 @@ class TestRun:
         warning = mock_st.warning.call_args.args[0]
         assert "https://example.com/audio" in warning
         assert "mp3" in warning
+        assert mock_st.warning.call_args.kwargs["icon"] == ":material/warning:"
         media = mock_deepgram_cls.return_value.listen.v1.media
         media.transcribe_url.assert_called_once()
 
@@ -416,6 +417,7 @@ class TestRun:
         warning = mock_st.warning.call_args.args[0]
         assert "https://example.com/audio" in warning
         assert "https://example.com/a.mp3" not in warning
+        assert mock_st.warning.call_args.kwargs["icon"] == ":material/warning:"
         media = mock_deepgram_cls.return_value.listen.v1.media
         assert media.transcribe_url.call_count == 2
 
@@ -437,6 +439,7 @@ class TestRun:
 
         info = mock_st.info.call_args.args[0]
         assert "Upload" in info and "Record" in info and "URL" in info
+        assert mock_st.info.call_args.kwargs["icon"] == ":material/info:"
         media = mock_deepgram_cls.return_value.listen.v1.media
         media.transcribe_file.assert_called_once()
         media.transcribe_url.assert_not_called()
@@ -605,11 +608,16 @@ class TestDiarizedTranscript:
         mock_st.markdown.assert_called_once_with("plain words")
 
     def test_speaker_label_color_cycles_by_index(self, mock_st):
-        # Each speaker index maps to _SPEAKER_COLORS, cycling (index 6 wraps to blue).
+        # Every _SPEAKER_COLORS entry is exercised (speakers 0-5), and the cycle wraps
+        # (speaker 6 -> blue again).
         words = [
             mock_word("a.", 0.9, speaker=0),
-            mock_word("b.", 0.9, speaker=2),
-            mock_word("c.", 0.9, speaker=6),
+            mock_word("b.", 0.9, speaker=1),
+            mock_word("c.", 0.9, speaker=2),
+            mock_word("d.", 0.9, speaker=3),
+            mock_word("e.", 0.9, speaker=4),
+            mock_word("f.", 0.9, speaker=5),
+            mock_word("g.", 0.9, speaker=6),
         ]
 
         streamlit_app._display_transcript(self._response(words))
@@ -617,8 +625,12 @@ class TestDiarizedTranscript:
         rendered = [c.args[0] for c in mock_st.markdown.call_args_list]
         assert rendered == [
             ":blue-background[**Speaker 1:**] a.",
-            ":violet-background[**Speaker 3:**] b.",
-            ":blue-background[**Speaker 7:**] c.",
+            ":green-background[**Speaker 2:**] b.",
+            ":violet-background[**Speaker 3:**] c.",
+            ":orange-background[**Speaker 4:**] d.",
+            ":red-background[**Speaker 5:**] e.",
+            ":gray-background[**Speaker 6:**] f.",
+            ":blue-background[**Speaker 7:**] g.",
         ]
 
 
@@ -835,18 +847,24 @@ class TestAppSmoke:
     """Run the whole script under a real Streamlit runtime (not the mock).
 
     Catches the class of errors the whole-module ``mock_st`` MagicMock cannot.
-    Two runs:
+    Four runs (a known key is seeded for the first three so they don't depend on a
+    local ``.env``):
 
-    - **empty state** — module load: ``set_page_config`` ordering, the ``st.form``
-      structure, and the dynamic-tab ``.open`` access.
-    - **seeded state** — renders the Transcript tab for a diarized result so the
-      ``:material/download:`` icon, the metric cards, the color-directive
-      transcript, and the dropped-playback caption execute for real (the
-      ``download_button`` icon is validated only here).
+    - **empty state** — module load (``set_page_config`` ordering, the ``st.form``
+      structure, the dynamic-tab ``.open`` access) plus the idle UI: the placeholder
+      caption, a disabled Run button, and the Features control order
+      (``language, keyterms, smart_format, diarize, dictation, measurements, redact``).
+    - **seeded diarized** — renders the Transcript tab for a diarized result, asserting
+      the exact 1-based color-directive speaker lines, the Duration/Confidence metric
+      cards, the dropped-playback caption, and that the hidden JSON tab's
+      ``model_dump_json`` is skipped (the ``download_button`` icon also runs here).
+    - **seeded flat** — the non-diarized render branch: a plain escaped transcript
+      with no speaker labels.
+    - **no-key state** — clears ``DEEPGRAM_API_KEY`` so the key-required warning and
+      the API-Key input render.
 
-    No Deepgram call happens — nothing clicks Run — so it never touches the
-    network. The toast/status icons fire only on a real batch and are not
-    exercised here.
+    No Deepgram call happens — nothing clicks Run — so it never touches the network;
+    the toast/per-item status icons fire only on a real batch and are not exercised.
     """
 
     def test_script_renders_clean_empty_and_seeded(self):
@@ -862,11 +880,16 @@ class TestAppSmoke:
         root = os.path.dirname(os.path.dirname(__file__))
         app = os.path.join(root, "streamlit_app.py")
         code = """
+import os
 import sys
 from unittest.mock import MagicMock
 from streamlit.testing.v1 import AppTest
 
 app = sys.argv[1]
+
+# Seed a key so the first three runs are deterministic regardless of a local .env
+# (load_dotenv does not override an already-set var); run #4 clears it.
+os.environ["DEEPGRAM_API_KEY"] = "test-key"
 
 
 def _word(text, speaker):
@@ -908,6 +931,9 @@ assert at.title[0].value == "Deepgram Medical Transcription"
 assert any("Select audio above" in c.value for c in at.caption), [c.value for c in at.caption]
 run = [b for b in at.button if b.label == "Run"]
 assert run and run[0].disabled, "Run should be disabled with no audio input"
+# Key was seeded, so no api-key warning fires — this pins the disable to the
+# no-input branch (`not has_input`), not the no-key branch (`not api_key`).
+assert not at.warning, [w.value for w in at.warning]
 
 # Features controls render in the intended order: inputs (Language, Keyterm) first,
 # the four toggles grouped, Redact deliberately last.
@@ -939,6 +965,10 @@ assert [m.value for m in seeded.markdown] == [
 assert [m.label for m in seeded.metric] == ["Duration", "Confidence"]
 assert [m.value for m in seeded.metric] == ["3.5 s", "95.0%"]
 assert any("Inline playback unavailable" in c.value for c in seeded.caption)
+# The hidden JSON tab's serialization is skipped while Transcript shows: no st.json
+# element is emitted and model_dump_json is never called (the .open guard fires).
+assert not seeded.json, [j.value for j in seeded.json]
+assert not diar.model_dump_json.called
 
 # 3) Seeded flat (non-diarized) result — the other render branch: a plain escaped
 #    transcript with no speaker labels.
@@ -950,6 +980,17 @@ flat_at.run()
 assert not flat_at.exception, flat_at.exception
 assert [m.value for m in flat_at.markdown] == ["Patient is stable."]
 assert not any("Speaker" in m.value for m in flat_at.markdown)
+
+# 4) No-key state — clear the key and no-op load_dotenv (.env would otherwise
+#    repopulate it) so the key-required warning + API-Key input render.
+import dotenv
+
+dotenv.load_dotenv = lambda *a, **k: False
+os.environ.pop("DEEPGRAM_API_KEY", None)
+nokey = AppTest.from_file(app, default_timeout=30).run()
+assert not nokey.exception, nokey.exception
+assert any("API key required" in w.value for w in nokey.warning), [w.value for w in nokey.warning]
+assert nokey.text_input  # the API-Key password input renders when the key is missing
 """
         result = subprocess.run(
             [sys.executable, "-c", code, app],
