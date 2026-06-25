@@ -37,6 +37,10 @@ MAX_RECORDING_SECONDS = 10 * 60  # 10 minutes
 MAX_PLAYBACK_BYTES = 25 * 1024 * 1024  # larger uploads skip inline playback (memory)
 OUTPUT_HEIGHT = 400  # fixed height (px) of the Transcript/JSON output panel
 
+# Material Symbol icons reused across status callouts (single-use icons stay inline).
+_ICON_ERROR = ":material/error:"
+_ICON_WARNING = ":material/warning:"
+
 # Per-speaker label colors for diarized transcripts, cycled by speaker index.
 # These are native Markdown color directives (:blue-background[...]) — no raw
 # HTML/CSS — so they stay test-safe plain strings. 'rainbow' is excluded: it is
@@ -75,10 +79,10 @@ def _completion_toast(n_ok: int, total: int) -> None:
     elif n_ok:
         st.toast(
             f"Transcribed {n_ok}/{total}; {total - n_ok} failed",
-            icon=":material/warning:",
+            icon=_ICON_WARNING,
         )
     else:
-        st.toast(f"All {total} item(s) failed", icon=":material/error:")
+        st.toast(f"All {total} item(s) failed", icon=_ICON_ERROR)
 
 
 def _transcribe_batch(
@@ -128,7 +132,7 @@ def _transcribe_batch(
         if r.error is not None:
             st.error(
                 f"Transcription failed for {r.label}: {r.error}",
-                icon=":material/error:",
+                icon=_ICON_ERROR,
             )
 
     # Always overwrite (even when empty) so a fully-failed run clears stale results.
@@ -194,14 +198,14 @@ def _run(api_key: str, uploaded_files: list, recording: Any, url_text: str) -> N
         if len(uploaded_files) > MAX_UPLOADS:
             st.error(
                 f"Too many files. Maximum is {MAX_UPLOADS} per batch.",
-                icon=":material/error:",
+                icon=_ICON_ERROR,
             )
             return
         oversized = [f.name for f in uploaded_files if f.size > MAX_FILE_SIZE]
         if oversized:
             st.error(
                 f"Skipped (exceeds 2 GiB): {', '.join(oversized)}",
-                icon=":material/error:",
+                icon=_ICON_ERROR,
             )
         valid = [
             (f.name, f.getvalue()) for f in uploaded_files if f.size <= MAX_FILE_SIZE
@@ -217,27 +221,27 @@ def _run(api_key: str, uploaded_files: list, recording: Any, url_text: str) -> N
                     raise wave.Error("zero framerate")
                 duration = wf.getnframes() / framerate
         except (wave.Error, EOFError):
-            st.error("Could not read the recording.", icon=":material/error:")
+            st.error("Could not read the recording.", icon=_ICON_ERROR)
             return
         if duration > MAX_RECORDING_SECONDS:
-            st.error("Recording exceeds the 10-minute limit.", icon=":material/error:")
+            st.error("Recording exceeds the 10-minute limit.", icon=_ICON_ERROR)
         else:
             _process_inputs(api_key, [("Recording", audio_bytes)], **_feature_opts())
     elif url_text.strip():
         valid, invalid = _parse_urls(url_text)
         if invalid:
-            st.error(f"Invalid URL(s): {', '.join(invalid)}", icon=":material/error:")
+            st.error(f"Invalid URL(s): {', '.join(invalid)}", icon=_ICON_ERROR)
         elif len(valid) > MAX_UPLOADS:
             st.error(
                 f"Too many URLs. Maximum is {MAX_UPLOADS} per batch.",
-                icon=":material/error:",
+                icon=_ICON_ERROR,
             )
         else:
             no_ext = [u for u in valid if not has_audio_extension(u)]
             if no_ext:
                 st.warning(
                     f"Unrecognized audio extension (supported: {', '.join(_AUDIO_TYPES)}): {', '.join(no_ext)}",
-                    icon=":material/warning:",
+                    icon=_ICON_WARNING,
                 )
             _process_urls(api_key, valid, **_feature_opts())
 
