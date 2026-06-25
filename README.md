@@ -25,14 +25,16 @@ If `DEEPGRAM_API_KEY` is not set, the app prompts for it inline.
 Below the input, a **Features** panel (left) holds the request options, with a **Run** button at the bottom. If you populate more than one input tab, Run transcribes a single one by priority — **Upload, then Record, then URL** — and shows a notice naming which ran and which were ignored.
 
 - **Language** — English variants (Nova-3 Medical is English-only)
-- **Smart Format** (on by default) — punctuation, paragraph breaks, and entity formatting
 - **Keyterm Prompting** — type specialized vocabulary (drug names, procedures, names), Enter to add each, up to 100, to boost recognition
+- **Smart Format** (on by default) — punctuation, paragraph breaks, and entity formatting
 - **Diarize** (off by default) — labels speaker turns as Speaker 1, Speaker 2, … in the transcript (speakers are numbered, not named by role)
 - **Dictation** (off by default) — turns spoken commands like "period" / "new paragraph" into punctuation (also enables punctuation)
 - **Measurements** (off by default) — abbreviates spoken units (e.g. "five milligrams" → "5 mg")
 - **Redact** (none by default) — replaces selected information with redaction tags. Use **PII** to de-identify (names, locations, IDs); note **PHI** strips clinical content itself (conditions, drugs, injuries)
 
 Progress is shown live in a status panel, with a toast when the batch finishes. Once a request completes, the **Transcript** and **JSON** tabs (right) display the response. Each transcript is topped with **Duration** and **Confidence** metric cards and a **Download transcript** button. A single result shows an audio player pinned above the scrollable text; multiple results are labeled and divided per file. With **Diarize** on, the transcript is split into color-coded `Speaker 1:`, `Speaker 2:`, … lines. (Large uploads — over 25 MB — show a notice instead of the inline player to limit memory; recordings and URLs always have one.)
+
+The app ships **light and dark themes** — switch via the Settings menu.
 
 ## Architecture
 
