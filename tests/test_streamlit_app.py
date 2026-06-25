@@ -892,6 +892,14 @@ def _resp(transcript, words, duration, confidence):
     return r
 
 
+def _widget_keys_in_order(node, acc):
+    # Depth-first walk of the element tree, collecting widget keys in document order.
+    for child in getattr(node, "children", {}).values():
+        if getattr(child, "key", None):
+            acc.append(child.key)
+        _widget_keys_in_order(child, acc)
+
+
 # 1) Empty state — module load (set_page_config / form / dynamic-tab .open) plus the
 #    idle UI: the placeholder caption and a Run button disabled with no input selected.
 at = AppTest.from_file(app, default_timeout=30).run()
@@ -900,6 +908,20 @@ assert at.title[0].value == "Deepgram Medical Transcription"
 assert any("Select audio above" in c.value for c in at.caption), [c.value for c in at.caption]
 run = [b for b in at.button if b.label == "Run"]
 assert run and run[0].disabled, "Run should be disabled with no audio input"
+
+# Features controls render in the intended order: inputs (Language, Keyterm) first,
+# the four toggles grouped, Redact deliberately last.
+order = []
+_widget_keys_in_order(at.main, order)
+assert [k for k in order if not k.startswith("FormSubmitter")] == [
+    "language",
+    "keyterms",
+    "smart_format",
+    "diarize",
+    "dictation",
+    "measurements",
+    "redact",
+], order
 
 # 2) Seeded diarized result — asserts the real rendered output: 1-based,
 #    color-highlighted speaker lines; Duration + Confidence metric cards; and the
