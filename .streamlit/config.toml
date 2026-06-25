@@ -29,10 +29,10 @@ grayColor = "#475569"                # Speaker 6 / unlabeled-speaker fallback (s
 
 # Dark mode — clinical slate (light mode's slate tones inverted).
 [theme.dark]
-primaryColor = "#2563EB"             # kept — keeps 4.54:1 contrast with white button text
+primaryColor = "#2563EB"             # kept — ≥4.5:1 contrast with white button text (clears WCAG AA)
 backgroundColor = "#0F172A"          # slate-900 (deep clinical slate, not pure black)
 secondaryBackgroundColor = "#1E293B" # slate-800 widget / container backgrounds
-textColor = "#E2E8F0"                # slate-200 body text (13.8:1 on the background)
+textColor = "#E2E8F0"                # slate-200 body text (≥13:1 on the background)
 linkColor = "#60A5FA"                # blue-400 — brightened for dark-bg readability
 codeBackgroundColor = "#1E293B"
 borderColor = "#334155"              # slate-700 widget borders
