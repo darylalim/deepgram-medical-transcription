@@ -10,7 +10,7 @@ Speaker numbers follow the renderer's 1-based display convention.
 
 from typing import Any
 
-from nova.results import first_alternative
+from nova.results import first_alternative, speaker_label, word_token
 
 _SENTENCE_END = (".", "?", "!")
 MAX_CUE_WORDS = 12  # cap cue length so subtitle lines stay readable
@@ -45,23 +45,25 @@ def _cues(alternative: Any) -> list[tuple[float, float, Any, str]]:
         if not isinstance(w_start, (int, float)) or not isinstance(w_end, (int, float)):
             continue
         w_speaker = getattr(word, "speaker", None)
-        token = getattr(word, "punctuated_word", None) or getattr(word, "word", "")
-        speaker_change = (
-            isinstance(w_speaker, int)
-            and isinstance(speaker, int)
-            and w_speaker != speaker
-        )
-        capped = bool(tokens) and (
-            len(tokens) >= MAX_CUE_WORDS or w_end - start > MAX_CUE_SECONDS
-        )
-        sentence_break = bool(tokens) and tokens[-1].endswith(_SENTENCE_END)
-        if tokens and (speaker_change or capped or sentence_break):
-            cues.append((start, end, speaker, " ".join(tokens)))
-            tokens = []
+        if tokens:
+            # Flush the open cue before a speaker change, once it hits the word /
+            # duration caps, or after a sentence-ending token. The sentence heuristic
+            # is deliberately simple, so it also splits after abbreviations like
+            # "Dr." / "q.i.d." — cosmetic only, and the caps bound cue length either
+            # way, so timings and indices stay valid.
+            speaker_change = (
+                isinstance(w_speaker, int)
+                and isinstance(speaker, int)
+                and w_speaker != speaker
+            )
+            capped = len(tokens) >= MAX_CUE_WORDS or w_end - start > MAX_CUE_SECONDS
+            if speaker_change or capped or tokens[-1].endswith(_SENTENCE_END):
+                cues.append((start, end, speaker, " ".join(tokens)))
+                tokens = []
         if not tokens:
             start = w_start
             speaker = w_speaker if isinstance(w_speaker, int) else None
-        tokens.append(token)
+        tokens.append(word_token(word))
         end = w_end
     if tokens:
         cues.append((start, end, speaker, " ".join(tokens)))
@@ -79,7 +81,8 @@ def to_srt(response: Any) -> str:
         return ""
     blocks = []
     for index, (start, end, speaker, text) in enumerate(_cues(alternative), start=1):
-        body = f"Speaker {speaker + 1}: {text}" if isinstance(speaker, int) else text
+        label = speaker_label(speaker)
+        body = f"Speaker {label}: {text}" if label is not None else text
         stamp = f"{_format_timestamp(start)} --> {_format_timestamp(end)}"
         blocks.append(f"{index}\n{stamp}\n{body}")
     return "\n\n".join(blocks)

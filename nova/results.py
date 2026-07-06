@@ -1,11 +1,26 @@
 """Deepgram response walkers for the Streamlit UI.
 
 Pure getattr-guarded reads with no streamlit imports, kept separate from the renderer
-so they can be unit-tested directly. Speaker values are Deepgram's native 0-based
-integers; the +1 display offset lives only in the Streamlit renderer.
+so they can be unit-tested directly. The walkers keep Deepgram's native 0-based speaker
+integers; `speaker_label` applies the 1-based display offset in one place, shared by the
+Streamlit renderer and the SRT export.
 """
 
 from typing import Any
+
+
+def word_token(word: Any) -> str:
+    """The word's display token: `punctuated_word` when present, else `word`."""
+    return getattr(word, "punctuated_word", None) or getattr(word, "word", "")
+
+
+def speaker_label(speaker: Any) -> int | None:
+    """1-based display label for an integer speaker, or None for a non-integer.
+
+    The core keeps speakers as Deepgram's 0-based ints; this is the single place the
+    `+1` display offset is applied (used by the Streamlit renderer and the SRT export).
+    """
+    return speaker + 1 if isinstance(speaker, int) else None
 
 
 def first_alternative(response: Any) -> Any | None:
@@ -47,7 +62,7 @@ def diarized_segments(response: Any) -> list[tuple[Any, str]] | None:
     segments: list[tuple[Any, list[str]]] = []
     for word in words:
         speaker = getattr(word, "speaker", None)
-        token = getattr(word, "punctuated_word", None) or getattr(word, "word", "")
+        token = word_token(word)
         # A word whose speaker is missing/non-int (rare mid-stream) continues the
         # current run instead of opening a bogus "Speaker None" segment; the words[0]
         # gate guarantees a run already exists by then.

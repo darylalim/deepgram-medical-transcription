@@ -27,6 +27,7 @@ from nova.config import (
 from nova.results import (
     diarized_segments as _diarized_segments,
     first_alternative as _first_alternative,
+    speaker_label as _speaker_label,
     transcript_text as _transcript_text,
 )
 from nova.subtitles import to_srt as _to_srt
@@ -283,11 +284,6 @@ def _display_metrics(response: Any) -> None:
             st.metric("Confidence", f"{confidence * 100:.1f}%", border=True)
 
 
-def _speaker_label(speaker: object) -> object:
-    """1-based display label for an integer speaker; non-int speakers pass through."""
-    return speaker + 1 if isinstance(speaker, int) else speaker
-
-
 def _display_transcript(response: Any) -> None:
     """Render one result's metrics then transcript (Markdown-escaped so it shows verbatim).
 
@@ -407,7 +403,7 @@ def _output_panel(
             render(response)
 
 
-PLACEHOLDER = ":material/graphic_eq: Select audio above and run your request to see the response here..."
+PLACEHOLDER = ":material/graphic_eq: Select audio above, then click Run in the sidebar to see the response here."
 NO_TRANSCRIPT = "No transcript in this response."
 PLAYBACK_TOO_LARGE = "Inline playback unavailable for files over 25 MB."
 
