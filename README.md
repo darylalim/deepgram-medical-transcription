@@ -34,7 +34,7 @@ A **Features** panel in the left sidebar holds the request options, closed by a 
 
 Progress is shown live in a status panel, with a toast when the batch finishes. Once a request completes, the full-width **Transcript** and **JSON** tabs display the response. Each transcript is topped with **Duration** and **Confidence** metric cards and a **Download transcript** button; a single result also offers a **Download subtitles (SRT)** button (timestamped, speaker-labeled cues) and an audio player pinned above the scrollable text. Multiple results are labeled and divided per file. With **Diarize** on, the transcript is split into color-coded `Speaker 1:`, `Speaker 2:`, … lines. (Large uploads — over 25 MB — show a notice instead of the inline player to limit memory; recordings and URLs always have one.)
 
-The app ships **light and dark themes** (Inter UI type, JetBrains Mono for the JSON view) — switch modes via the Settings menu.
+The app ships **light and dark themes** (self-hosted Inter UI type, JetBrains Mono for the JSON view) — switch modes via the Settings menu.
 
 ## Architecture
 
