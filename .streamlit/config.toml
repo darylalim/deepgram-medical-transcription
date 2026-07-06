@@ -8,14 +8,40 @@
 baseRadius = "8px"
 showWidgetBorder = true
 linkUnderline = false                # color alone signals links — cleaner than underlines
-# Typography — Inter across the UI, JetBrains Mono for the JSON/code view (both from
-# Google Fonts). Purely a client-side CSS request (no PHI leaves the app); if the
-# fonts are blocked or offline, Streamlit falls back to the system sans / mono stack.
-font = "Inter:https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
-codeFont = "'JetBrains Mono':https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap"
+# Typography — Inter (UI) and JetBrains Mono (JSON/code view), SELF-HOSTED from
+# static/ (see the [[theme.fontFaces]] tables below + [server].enableStaticServing).
+# No request ever leaves the app to a third-party font CDN — important for a PHI app;
+# Streamlit falls back to the system sans / mono stack if a face fails to load.
+font = "Inter"
+codeFont = "'JetBrains Mono'"
 # Heading scale. The app's only visible heading is the h1 st.title; this 1-element
 # array calms Streamlit's shouty 2.75rem default and leaves h2–h6 at their defaults.
 headingFontSizes = ["2.25rem"]       # ~36px at the 16px base (was 2.75rem / 44px)
+
+[[theme.fontFaces]]
+family = "Inter"
+url = "app/static/inter-400.woff2"
+weight = 400
+[[theme.fontFaces]]
+family = "Inter"
+url = "app/static/inter-500.woff2"
+weight = 500
+[[theme.fontFaces]]
+family = "Inter"
+url = "app/static/inter-600.woff2"
+weight = 600
+[[theme.fontFaces]]
+family = "Inter"
+url = "app/static/inter-700.woff2"
+weight = 700
+[[theme.fontFaces]]
+family = "JetBrains Mono"
+url = "app/static/jetbrains-mono-400.woff2"
+weight = 400
+[[theme.fontFaces]]
+family = "JetBrains Mono"
+url = "app/static/jetbrains-mono-500.woff2"
+weight = 500
 
 # Light mode — clinical blue on white.
 [theme.light]
@@ -51,3 +77,8 @@ violetColor = "#A78BFA"              # Speaker 3
 orangeColor = "#FB923C"              # Speaker 4
 redColor = "#F87171"                 # Speaker 5 / error accents (st.error)
 grayColor = "#94A3B8"                # Speaker 6 / unlabeled-speaker fallback (slate-400)
+
+# Serve the bundled fonts under static/ at app/static/* (referenced by the
+# [[theme.fontFaces]] URLs above). Keeps typography first-party — no font CDN.
+[server]
+enableStaticServing = true
