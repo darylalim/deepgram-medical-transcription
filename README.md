@@ -22,7 +22,7 @@ If `DEEPGRAM_API_KEY` is not set, the app prompts for it inline.
 - **Record** — record from microphone (max 10 minutes)
 - **URL** — transcribe from HTTP/HTTPS URLs (up to 100 per batch)
 
-Below the input, a **Features** panel (left) holds the request options, with a **Run** button at the bottom. If you populate more than one input tab, Run transcribes a single one by priority — **Upload, then Record, then URL** — and shows a notice naming which ran and which were ignored.
+A **Features** panel in the left sidebar holds the request options, closed by a **Run** button. If you populate more than one input tab, Run transcribes a single one by priority — **Upload, then Record, then URL** — and shows a notice naming which ran and which were ignored.
 
 - **Language** — English variants (Nova-3 Medical is English-only)
 - **Keyterm Prompting** — type specialized vocabulary (drug names, procedures, names), Enter to add each, up to 100, to boost recognition
@@ -32,13 +32,13 @@ Below the input, a **Features** panel (left) holds the request options, with a *
 - **Measurements** (off by default) — abbreviates spoken units (e.g. "five milligrams" → "5 mg")
 - **Redact** (none by default) — replaces selected information with redaction tags. Use **PII** to de-identify (names, locations, IDs); note **PHI** strips clinical content itself (conditions, drugs, injuries)
 
-Progress is shown live in a status panel, with a toast when the batch finishes. Once a request completes, the **Transcript** and **JSON** tabs (right) display the response. Each transcript is topped with **Duration** and **Confidence** metric cards and a **Download transcript** button. A single result shows an audio player pinned above the scrollable text; multiple results are labeled and divided per file. With **Diarize** on, the transcript is split into color-coded `Speaker 1:`, `Speaker 2:`, … lines. (Large uploads — over 25 MB — show a notice instead of the inline player to limit memory; recordings and URLs always have one.)
+Progress is shown live in a status panel, with a toast when the batch finishes. Once a request completes, the full-width **Transcript** and **JSON** tabs display the response. Each transcript is topped with **Duration** and **Confidence** metric cards and a **Download transcript** button; a single result also offers a **Download subtitles (SRT)** button (timestamped, speaker-labeled cues) and an audio player pinned above the scrollable text. Multiple results are labeled and divided per file. With **Diarize** on, the transcript is split into color-coded `Speaker 1:`, `Speaker 2:`, … lines. (Large uploads — over 25 MB — show a notice instead of the inline player to limit memory; recordings and URLs always have one.)
 
-The app ships **light and dark themes** — switch via the Settings menu.
+The app ships **light and dark themes** (Inter UI type, JetBrains Mono for the JSON view) — switch modes via the Settings menu.
 
 ## Architecture
 
-- **`nova/`** — the framework-free core (no Streamlit imports): `config` (constants), `transcribe` (`build_options` + `transcribe_batch`), `results` (response walkers). Speakers are Deepgram's native 0-based integers here.
+- **`nova/`** — the framework-free core (no Streamlit imports): `config` (constants), `transcribe` (`build_options` + `transcribe_batch`), `results` (response walkers), `subtitles` (`to_srt` — SRT subtitle export). Speakers are Deepgram's native 0-based integers here.
 - **`streamlit_app.py`** — the Streamlit UI; a thin adapter over `nova/` that adds widgets, session state, and the renderers (which display speakers 1-based).
 
 ## Sample Audio
@@ -58,4 +58,4 @@ uv run ruff format .  # format
 uv run ty check .     # type check
 ```
 
-Tests mock the Deepgram client — no real API calls. The core is tested directly (`tests/test_transcribe.py`, `tests/test_results.py`) and the Streamlit adapter in `tests/test_streamlit_app.py`.
+Tests mock the Deepgram client — no real API calls. The core is tested directly (`tests/test_transcribe.py`, `tests/test_results.py`, `tests/test_subtitles.py`) and the Streamlit adapter in `tests/test_streamlit_app.py`.

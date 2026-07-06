@@ -49,7 +49,7 @@ Visual theming lives in `.streamlit/config.toml` — shared `[theme]` settings p
 
 The only env var is `DEEPGRAM_API_KEY` (server-side only), loaded from `.env` (gitignored; see `.env.example`) via python-dotenv; the UI also prompts for it inline if unset.
 
-The Streamlit UI's visual theme is non-secret config in `.streamlit/config.toml` (tracked); secrets (`.env`, `.streamlit/secrets.toml`) are gitignored.
+The Streamlit UI's visual theme is non-secret config in `.streamlit/config.toml` (tracked); secrets (`.env`, `.streamlit/secrets.toml`) are gitignored. The theme's `font`/`codeFont` load Inter / JetBrains Mono from Google Fonts — a client-side CSS request that carries no PHI and falls back to the system stack when blocked or offline.
 
 ## PHI logging policy (non-negotiable)
 

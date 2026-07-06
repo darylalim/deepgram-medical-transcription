@@ -10,5 +10,9 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 
+# App exports (the Download buttons produce these; never part of the repo)
+transcripts.txt
+subtitles.srt
+
 # OS
 .DS_Store
