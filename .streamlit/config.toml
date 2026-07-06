@@ -8,6 +8,14 @@
 baseRadius = "8px"
 showWidgetBorder = true
 linkUnderline = false                # color alone signals links — cleaner than underlines
+# Typography — Inter across the UI, JetBrains Mono for the JSON/code view (both from
+# Google Fonts). Purely a client-side CSS request (no PHI leaves the app); if the
+# fonts are blocked or offline, Streamlit falls back to the system sans / mono stack.
+font = "Inter:https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+codeFont = "'JetBrains Mono':https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap"
+# Heading scale. The app's only visible heading is the h1 st.title; this 1-element
+# array calms Streamlit's shouty 2.75rem default and leaves h2–h6 at their defaults.
+headingFontSizes = ["2.25rem"]       # ~36px at the 16px base (was 2.75rem / 44px)
 
 # Light mode — clinical blue on white.
 [theme.light]

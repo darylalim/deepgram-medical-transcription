@@ -386,7 +386,7 @@ def _output_panel(
             render(response)
 
 
-PLACEHOLDER = "Select audio above and run your request to see the response here..."
+PLACEHOLDER = ":material/graphic_eq: Select audio above and run your request to see the response here..."
 NO_TRANSCRIPT = "No transcript in this response."
 PLAYBACK_TOO_LARGE = "Inline playback unavailable for files over 25 MB."
 
@@ -406,7 +406,10 @@ def _render_output() -> None:
     """
     responses = st.session_state.get("responses", [])
     audio_sources = st.session_state.get("audio_sources", [])
-    tab_transcript, tab_json = st.tabs(["Transcript", "JSON"], on_change="rerun")
+    tab_transcript, tab_json = st.tabs(
+        [":material/description: Transcript", ":material/data_object: JSON"],
+        on_change="rerun",
+    )
     if tab_transcript.open is not False:
         with tab_transcript:
             _transcript_download(responses)
@@ -423,6 +426,10 @@ st.set_page_config(
 )
 
 st.title("Deepgram Medical Transcription")
+st.caption(
+    "Transcribe clinical audio with Deepgram's Nova-3 Medical model — "
+    "speaker labels, measurement formatting, and PII/PHI redaction."
+)
 
 api_key = os.environ.get("DEEPGRAM_API_KEY", "")
 if not api_key:
@@ -433,10 +440,13 @@ if not api_key:
     api_key = st.text_input(
         "Deepgram API Key",
         type="password",
+        placeholder="Paste your Deepgram API key to continue",
         label_visibility="collapsed",
     )
 
-tab_upload, tab_record, tab_url = st.tabs(["Upload", "Record", "URL"])
+tab_upload, tab_record, tab_url = st.tabs(
+    [":material/upload: Upload", ":material/mic: Record", ":material/link: URL"]
+)
 
 with tab_upload:
     uploaded_files = st.file_uploader(
