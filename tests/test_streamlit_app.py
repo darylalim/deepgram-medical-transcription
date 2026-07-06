@@ -823,10 +823,17 @@ class TestTranscriptDownload:
 
         streamlit_app._transcript_download([("a.wav", response)])
 
-        mock_st.download_button.assert_called_once()
-        data = mock_st.download_button.call_args.args[1]
-        assert "a.wav" in data
-        assert "Life moves pretty fast really." in data
+        # Two buttons: the lazy plain-text transcript and the single-result SRT.
+        assert mock_st.download_button.call_count == 2
+        build_transcript = mock_st.download_button.call_args_list[0].args[1]
+        assert callable(
+            build_transcript
+        )  # deferred: data built on click, not per rerun
+        text = build_transcript()
+        assert "a.wav" in text
+        assert "Life moves pretty fast really." in text
+        srt = mock_st.download_button.call_args_list[1].args[1]
+        assert "-->" in srt  # SRT cue timing line
 
     def test_diarized_export_uses_plain_speaker_lines(self):
         # The export is plain text (no color directives): "Speaker N: ..." per turn.

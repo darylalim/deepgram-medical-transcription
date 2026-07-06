@@ -29,6 +29,7 @@ from nova.results import (
     first_alternative as _first_alternative,
     transcript_text as _transcript_text,
 )
+from nova.subtitles import to_srt as _to_srt
 from nova.transcribe import build_options, transcribe_batch
 
 load_dotenv()
@@ -332,17 +333,37 @@ def _plain_transcript(response: Any) -> str:
 
 
 def _transcript_download(responses: list[tuple[str, Any]]) -> None:
-    """A download button for every transcript in the batch (Transcript tab only)."""
+    """Transcript-tab download buttons: plain-text (whole batch) plus SRT for a single result.
+
+    The plain-text blob is built lazily via a zero-arg `data` callable, so it is only
+    assembled when the user actually clicks — not on every Transcript-tab fragment
+    rerun. The SRT button appears only for a single result (subtitles map to one media
+    track) and only when the response yields timed cues.
+    """
     if not responses:
         return
-    blocks = [f"{name}\n{_plain_transcript(response)}" for name, response in responses]
+
+    def _build_transcript() -> str:
+        blocks = [f"{name}\n{_plain_transcript(r)}" for name, r in responses]
+        return "\n\n".join(blocks)
+
     st.download_button(
         "Download transcript",
-        "\n\n".join(blocks),
+        _build_transcript,
         file_name="transcripts.txt",
         mime="text/plain",
         icon=":material/download:",
     )
+    if len(responses) == 1:
+        srt = _to_srt(responses[0][1])
+        if srt:
+            st.download_button(
+                "Download subtitles (SRT)",
+                srt,
+                file_name="subtitles.srt",
+                mime="application/x-subrip",
+                icon=":material/subtitles:",
+            )
 
 
 def _output_panel(
