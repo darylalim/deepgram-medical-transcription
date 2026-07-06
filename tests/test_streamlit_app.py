@@ -942,10 +942,10 @@ assert run and run[0].disabled, "Run should be disabled with no audio input"
 # no-input branch (`not has_input`), not the no-key branch (`not api_key`).
 assert not at.warning, [w.value for w in at.warning]
 
-# Features controls render in the intended order: inputs (Language, Keyterm) first,
-# the four toggles grouped, Redact deliberately last.
+# Features live in the sidebar and render in the intended order: inputs (Language,
+# Keyterm) first, the four toggles grouped, Redact deliberately last.
 order = []
-_widget_keys_in_order(at.main, order)
+_widget_keys_in_order(at.sidebar, order)
 assert [k for k in order if not k.startswith("FormSubmitter")] == [
     "language",
     "keyterms",

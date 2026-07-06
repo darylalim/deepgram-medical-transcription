@@ -488,73 +488,72 @@ with tab_url:
     )
 
 
-left_col, right_col = st.columns(2)
+# Features live in the sidebar — the canonical home for app-level settings — so the
+# Transcript / JSON output gets the full main width. The form batches feature edits so
+# they don't rerun until Run is clicked.
+with st.sidebar:
+    st.caption(":material/tune: Transcription settings")
+    with st.form("features", border=False):
+        st.selectbox(
+            "Language",
+            options=list(_LANGUAGES),
+            format_func=lambda code: _LANGUAGES[code],
+            key="language",
+        )
+        st.multiselect(
+            "Keyterm Prompting",
+            options=[],
+            accept_new_options=True,
+            max_selections=MAX_KEYTERMS,
+            placeholder="Add keyterms...",
+            help="Boosts recognition of important words or phrases, like names, product terms, or jargon. The model pays extra attention to these; you can include up to 100 keyterms per request.",
+            key="keyterms",
+        )
+        st.toggle(
+            "Smart Format",
+            value=DEFAULT_SMART_FORMAT,
+            help="Smart Format improves readability by applying additional formatting. When enabled, punctuation and paragraph breaks will be applied as well as formatting of other entities, such as dates, times, and numbers.",
+            key="smart_format",
+        )
+        st.toggle(
+            "Diarize",
+            value=DEFAULT_DIARIZE,
+            help="Detects speaker changes and labels turns as Speaker 1, Speaker 2, … in the transcript. Speakers are numbered, not named by role.",
+            key="diarize",
+        )
+        st.toggle(
+            "Dictation",
+            value=DEFAULT_DICTATION,
+            help='Converts spoken formatting commands into characters (e.g. "period" becomes ".", "new paragraph" starts a new line). Automatically enables punctuation.',
+            key="dictation",
+        )
+        st.toggle(
+            "Measurements",
+            value=DEFAULT_MEASUREMENTS,
+            help='Converts spoken measurements into abbreviated units (e.g. "five milligrams" becomes "5 mg").',
+            key="measurements",
+        )
+        st.multiselect(
+            "Redact",
+            options=list(_REDACT_GROUPS),
+            format_func=lambda group: _REDACT_GROUPS[group],
+            placeholder="Select information to redact...",
+            help="Replaces the selected information with redaction tags in the transcript. For de-identification, use PII (names, locations, IDs). Note: PHI redaction strips clinical content itself (conditions, drugs, injuries) — usually the opposite of what a medical transcript should keep.",
+            key="redact",
+        )
+        has_input = bool(uploaded_files or recording is not None or url_text.strip())
+        run_clicked = st.form_submit_button(
+            "Run",
+            type="primary",
+            icon=":material/graphic_eq:",
+            disabled=not api_key or not has_input,
+            help=None
+            if (api_key and has_input)
+            else "Add an API key and an upload, recording, or URL to enable transcription.",
+            width="stretch",
+        )
 
-with left_col:
-    (features_tab,) = st.tabs(["Features"])
-    with features_tab:
-        with st.form("features", border=False):
-            st.selectbox(
-                "Language",
-                options=list(_LANGUAGES),
-                format_func=lambda code: _LANGUAGES[code],
-                key="language",
-            )
-            st.multiselect(
-                "Keyterm Prompting",
-                options=[],
-                accept_new_options=True,
-                max_selections=MAX_KEYTERMS,
-                placeholder="Add keyterms...",
-                help="Boosts recognition of important words or phrases, like names, product terms, or jargon. The model pays extra attention to these; you can include up to 100 keyterms per request.",
-                key="keyterms",
-            )
-            st.toggle(
-                "Smart Format",
-                value=DEFAULT_SMART_FORMAT,
-                help="Smart Format improves readability by applying additional formatting. When enabled, punctuation and paragraph breaks will be applied as well as formatting of other entities, such as dates, times, and numbers.",
-                key="smart_format",
-            )
-            st.toggle(
-                "Diarize",
-                value=DEFAULT_DIARIZE,
-                help="Detects speaker changes and labels turns as Speaker 1, Speaker 2, … in the transcript. Speakers are numbered, not named by role.",
-                key="diarize",
-            )
-            st.toggle(
-                "Dictation",
-                value=DEFAULT_DICTATION,
-                help='Converts spoken formatting commands into characters (e.g. "period" becomes ".", "new paragraph" starts a new line). Automatically enables punctuation.',
-                key="dictation",
-            )
-            st.toggle(
-                "Measurements",
-                value=DEFAULT_MEASUREMENTS,
-                help='Converts spoken measurements into abbreviated units (e.g. "five milligrams" becomes "5 mg").',
-                key="measurements",
-            )
-            st.multiselect(
-                "Redact",
-                options=list(_REDACT_GROUPS),
-                format_func=lambda group: _REDACT_GROUPS[group],
-                placeholder="Select information to redact...",
-                help="Replaces the selected information with redaction tags in the transcript. For de-identification, use PII (names, locations, IDs). Note: PHI redaction strips clinical content itself (conditions, drugs, injuries) — usually the opposite of what a medical transcript should keep.",
-                key="redact",
-            )
-            has_input = bool(
-                uploaded_files or recording is not None or url_text.strip()
-            )
-            run_clicked = st.form_submit_button(
-                "Run",
-                type="primary",
-                disabled=not api_key or not has_input,
-                help=None
-                if (api_key and has_input)
-                else "Add an API key and an upload, recording, or URL to enable transcription.",
-                width="stretch",
-            )
-        if run_clicked:
-            _run(api_key, uploaded_files, recording, url_text)
+if run_clicked:
+    _run(api_key, uploaded_files, recording, url_text)
 
-with right_col:
-    _render_output()
+_render_output()
