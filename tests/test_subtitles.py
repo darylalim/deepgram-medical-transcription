@@ -21,6 +21,12 @@ class TestFormatTimestamp:
     def test_sub_second_millis(self):
         assert _format_timestamp(65.25) == "00:01:05,250"
 
+    def test_rounds_to_nearest_millisecond(self):
+        assert _format_timestamp(1.2346) == "00:00:01,235"
+
+    def test_clamps_negative_to_zero(self):
+        assert _format_timestamp(-1.0) == "00:00:00,000"
+
 
 class TestToSrt:
     def test_diarized_two_speakers_split_on_speaker_change(self):
@@ -60,6 +66,16 @@ class TestToSrt:
 
         assert to_srt(_response(words)).count("-->") == 2
 
+    def test_duration_cap_starts_a_new_cue(self):
+        # Same speaker, no sentence-end: a >6s span forces a split by the duration
+        # cap alone (word count stays at 1 per cue).
+        words = [
+            mock_word("one", 0.9, speaker=0, start=0.0, end=1.0),
+            mock_word("two", 0.9, speaker=0, start=7.0, end=8.0),
+        ]
+
+        assert to_srt(_response(words)).count("-->") == 2
+
     def test_words_without_numeric_timing_are_skipped(self):
         # A word missing numeric start/end cannot anchor a cue and is dropped.
         dropped = MagicMock()
@@ -73,6 +89,26 @@ class TestToSrt:
         srt = to_srt(_response(words))
         assert "dropped" not in srt
         assert srt == "1\n00:00:01,000 --> 00:00:02,000\nSpeaker 1: kept"
+
+    def test_unicode_token_passes_through(self):
+        words = [mock_word("café", 0.9, speaker=0, start=0.0, end=1.0)]
+
+        assert "café" in to_srt(_response(words))
+
+    def test_alternative_present_but_no_words_is_empty(self):
+        # A real alternative whose words list is empty yields no cues -> "".
+        assert to_srt(_response([])) == ""
+
+    def test_all_words_untimed_is_empty(self):
+        # If every word lacks numeric timing, no cue can anchor -> "".
+        untimed = MagicMock()
+        untimed.punctuated_word = "x"
+        untimed.word = "x"
+        untimed.speaker = 0
+        untimed.start = None
+        untimed.end = None
+
+        assert to_srt(_response([untimed])) == ""
 
     def test_results_less_response_is_empty(self):
         response = MagicMock(spec=["request_id"])

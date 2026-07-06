@@ -823,17 +823,14 @@ class TestTranscriptDownload:
 
         streamlit_app._transcript_download([("a.wav", response)])
 
-        # Two buttons: the lazy plain-text transcript and the single-result SRT.
-        assert mock_st.download_button.call_count == 2
+        # Focus: the plain-text transcript button and its lazy (zero-arg callable)
+        # data. SRT-button behavior is covered by the dedicated tests below.
+        assert mock_st.download_button.call_count >= 1
         build_transcript = mock_st.download_button.call_args_list[0].args[1]
-        assert callable(
-            build_transcript
-        )  # deferred: data built on click, not per rerun
+        assert callable(build_transcript)  # deferred: built on click, not per rerun
         text = build_transcript()
         assert "a.wav" in text
         assert "Life moves pretty fast really." in text
-        srt = mock_st.download_button.call_args_list[1].args[1]
-        assert "-->" in srt  # SRT cue timing line
 
     def test_diarized_export_uses_plain_speaker_lines(self):
         # The export is plain text (no color directives): "Speaker N: ..." per turn.
@@ -862,9 +859,12 @@ class TestTranscriptDownload:
         streamlit_app._transcript_download([("visit.wav", response)])
 
         assert mock_st.download_button.call_count == 2
-        srt = mock_st.download_button.call_args_list[1].args[1]
-        assert "Speaker 1: Hello." in srt
-        assert "-->" in srt
+        srt_call = mock_st.download_button.call_args_list[1]
+        assert "Speaker 1: Hello." in srt_call.args[1]
+        assert "-->" in srt_call.args[1]
+        assert srt_call.kwargs["file_name"] == "subtitles.srt"
+        assert srt_call.kwargs["mime"] == "application/x-subrip"
+        assert srt_call.kwargs["icon"] == ":material/subtitles:"
 
     def test_no_srt_button_when_no_timed_cues(self, mock_st):
         # A transcript with no word timings yields no SRT cues, so only the
@@ -882,18 +882,23 @@ class TestTranscriptDownload:
 
     def test_multiple_results_export_txt_only(self, mock_st):
         # SRT maps to a single media track, so a multi-result batch skips it and
-        # exports only the combined plain-text transcript.
-        def _timed():
-            words = [mock_word("Note.", 0.9, speaker=0, start=0.0, end=1.0)]
+        # exports only the combined plain-text transcript (both files present).
+        def _timed(token):
+            words = [mock_word(token, 0.9, speaker=0, start=0.0, end=1.0)]
             response = MagicMock()
             response.results.channels = [
                 MagicMock(alternatives=[MagicMock(words=words)])
             ]
             return response
 
-        streamlit_app._transcript_download([("a.wav", _timed()), ("b.wav", _timed())])
+        streamlit_app._transcript_download(
+            [("a.wav", _timed("Alpha.")), ("b.wav", _timed("Beta."))]
+        )
 
         assert mock_st.download_button.call_count == 1
+        combined = mock_st.download_button.call_args_list[0].args[1]()
+        assert "a.wav" in combined and "b.wav" in combined
+        assert "Alpha." in combined and "Beta." in combined
 
 
 class TestAppSmoke:
