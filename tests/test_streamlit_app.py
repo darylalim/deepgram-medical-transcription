@@ -849,6 +849,52 @@ class TestTranscriptDownload:
             == "Speaker 1: Hello.\nSpeaker 2: Hi."
         )
 
+    def test_single_diarized_result_offers_srt_subtitles(self, mock_st):
+        # A single timed, diarized result adds the SRT button; its cues carry the
+        # 1-based "Speaker N:" prefix and a timing line.
+        words = [
+            mock_word("Hello.", 0.9, speaker=0, start=0.0, end=1.0),
+            mock_word("Hi.", 0.9, speaker=1, start=1.0, end=2.0),
+        ]
+        response = MagicMock()
+        response.results.channels = [MagicMock(alternatives=[MagicMock(words=words)])]
+
+        streamlit_app._transcript_download([("visit.wav", response)])
+
+        assert mock_st.download_button.call_count == 2
+        srt = mock_st.download_button.call_args_list[1].args[1]
+        assert "Speaker 1: Hello." in srt
+        assert "-->" in srt
+
+    def test_no_srt_button_when_no_timed_cues(self, mock_st):
+        # A transcript with no word timings yields no SRT cues, so only the
+        # plain-text button renders (still deferred behind a callable).
+        alt = MagicMock(words=[])
+        alt.transcript = "Patient is stable."
+        response = MagicMock()
+        response.results.channels = [MagicMock(alternatives=[alt])]
+
+        streamlit_app._transcript_download([("note.wav", response)])
+
+        assert mock_st.download_button.call_count == 1
+        build_transcript = mock_st.download_button.call_args_list[0].args[1]
+        assert "Patient is stable." in build_transcript()
+
+    def test_multiple_results_export_txt_only(self, mock_st):
+        # SRT maps to a single media track, so a multi-result batch skips it and
+        # exports only the combined plain-text transcript.
+        def _timed():
+            words = [mock_word("Note.", 0.9, speaker=0, start=0.0, end=1.0)]
+            response = MagicMock()
+            response.results.channels = [
+                MagicMock(alternatives=[MagicMock(words=words)])
+            ]
+            return response
+
+        streamlit_app._transcript_download([("a.wav", _timed()), ("b.wav", _timed())])
+
+        assert mock_st.download_button.call_count == 1
+
 
 class TestAppSmoke:
     """Run the whole script under a real Streamlit runtime (not the mock).
