@@ -63,6 +63,10 @@ The only env var is `DEEPGRAM_API_KEY` (server-side only), loaded from `.env` (g
 
 The Streamlit UI's visual theme is non-secret config in `.streamlit/config.toml` (tracked); secrets (`.env`/`.env.*`, `.streamlit/secrets.toml`) are gitignored. The theme self-hosts Inter / JetBrains Mono as WOFF2 in `static/` (served at `app/static/*` via `[server].enableStaticServing`), so **no request leaves the app to a third-party font CDN**; faces fall back to the system sans/mono stack if they fail to load. See `static/FONTS.md` for attribution (both are SIL OFL 1.1).
 
+## License
+
+MIT — the `LICENSE` file (© Daryl Lim) is the text GitHub's scanner reads for the repo badge; it is declared to packaging tools via the PEP 639 `license = "MIT"` + `license-files = ["LICENSE"]` metadata in `pyproject.toml`, surfaced in the README (section + badge), and guarded by `tests/test_license.py` (which pins that the `LICENSE` body and the SPDX id agree, so swapping one without the other trips a check). The MIT warranty disclaimer is deliberate for a medical-adjacent tool: this is a **reference implementation, not certified for clinical use**, and it dovetails with the PHI policy below — operators own their Deepgram BAA before real PHI flows.
+
 ## PHI logging policy (non-negotiable)
 
 - **Never log** audio bytes, transcripts, segments, raw responses, keyterms, filenames, or full URLs. Treat every Deepgram request/response as carrying PHI.

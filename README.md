@@ -1,6 +1,6 @@
 # Deepgram Medical Transcription
 
-[![CI](https://github.com/darylalim/deepgram-medical-transcription/actions/workflows/ci.yml/badge.svg)](https://github.com/darylalim/deepgram-medical-transcription/actions/workflows/ci.yml)
+[![CI](https://github.com/darylalim/deepgram-medical-transcription/actions/workflows/ci.yml/badge.svg)](https://github.com/darylalim/deepgram-medical-transcription/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 Streamlit application for medical transcription using Deepgram Nova, built on a framework-free core (`nova/`) that handles option building, batching, and response parsing.
 
