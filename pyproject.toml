@@ -1,7 +1,7 @@
 [project]
 name = "deepgram-medical-transcription"
 version = "0.8.0"
-description = "Streamlit application for medical transcription using Deepgram Nova."
+description = "Streamlit application for medical transcription using Deepgram's Nova-3 Medical model."
 readme = "README.md"
 authors = [{ name = "Daryl Lim" }]
 license = "MIT"
