@@ -1,0 +1,9 @@
+# Keeps the SHA-pinned GitHub Actions in .github/workflows/ fresh: Dependabot
+# opens PRs that bump each `uses: …@<sha>` pin (and its `# vX.Y.Z` comment) when
+# a new release ships, so pinning to an immutable SHA stays low-maintenance.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

@@ -62,7 +62,7 @@ uv run ty check .     # type check
 
 Tests mock the Deepgram client — no real API calls. The core is tested directly (`tests/test_transcribe.py`, `tests/test_results.py`, `tests/test_subtitles.py`), the Streamlit adapter in `tests/test_streamlit_app.py`, the dev hooks in `tests/test_hooks.py`, and the CI workflow itself in `tests/test_ci_workflow.py`.
 
-**Continuous integration** — `.github/workflows/ci.yml` (GitHub Actions) runs these same four gates on every push to `main` and every pull request, plus `uv sync --locked` to catch lockfile drift. It needs no secrets: tests mock Deepgram, so CI never calls the API.
+**Continuous integration** — `.github/workflows/ci.yml` (GitHub Actions) runs these same four gates plus `uv sync --locked` across a Python 3.12 + 3.13 matrix on every push to `main`, every pull request, and manual dispatch. It needs no secrets: tests mock Deepgram, so CI never calls the API. Actions are SHA-pinned and kept current by Dependabot.
 
 ## Claude Code hooks
 
