@@ -64,14 +64,6 @@ The app ships light and dark themes (self-hosted Inter for UI type, JetBrains Mo
 
 **Troubleshooting** — if transcription fails with a per-file error (rather than the app refusing to start), check that `DEEPGRAM_API_KEY` is valid and has available credit: an invalid or expired key is reported as a per-item transcription failure, not a startup error.
 
-## Sample Audio
-
-Medical dictation practice files from [NCH Software](https://www.nch.com.au/scribe/practice.html):
-
-- [Chris Smith Medical Report](https://www.nch.com.au/scribe/practice/audio-sample-4.mp3)
-- [Janet Jones Medical Report](https://www.nch.com.au/scribe/practice/audio-sample-5.mp3)
-- [John Finton Medical Report](https://www.nch.com.au/scribe/practice/audio-sample-6.mp3)
-
 ## Architecture
 
 - **`nova/`** — the framework-free core (no Streamlit imports): `config` (constants), `transcribe` (`build_options` + `transcribe_batch`), `results` (response walkers), `subtitles` (`to_srt` — SRT subtitle export). Speakers are Deepgram's native 0-based integers here.
