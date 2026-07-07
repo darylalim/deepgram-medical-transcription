@@ -1,9 +1,12 @@
-# Env (.env.example is the tracked template; .env / .env.* hold real secrets)
+# Env (.env.example is the tracked template; .env / .env.* / .envrc hold real secrets)
 .env
 .env.*
 !.env.example
-# Streamlit secrets (.streamlit/config.toml light/dark themes are tracked; secrets.toml is not)
-.streamlit/secrets.toml
+.envrc
+# Secret TOML configs — mirrors .claude/hooks/block-secrets.sh so git won't commit
+# what the hook won't let Claude edit. (.streamlit/config.toml themes are tracked; secrets are not.)
+secrets.toml
+.secrets.toml
 .venv/
 
 # Caches
