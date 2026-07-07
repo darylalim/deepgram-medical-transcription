@@ -206,7 +206,8 @@ def _run(api_key: str, uploaded_files: list, recording: Any, url_text: str) -> N
         oversized = [f.name for f in uploaded_files if f.size > MAX_FILE_SIZE]
         if oversized:
             st.error(
-                f"Skipped (exceeds 2 GiB): {', '.join(oversized)}",
+                f"Skipped (exceeds {MAX_FILE_SIZE // (1024 * 1024)} MB): "
+                f"{', '.join(oversized)}",
                 icon=_ICON_ERROR,
             )
         valid = [

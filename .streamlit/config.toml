@@ -82,3 +82,7 @@ grayColor = "#94A3B8"                # Speaker 6 / unlabeled-speaker fallback (s
 # [[theme.fontFaces]] URLs above). Keeps typography first-party — no font CDN.
 [server]
 enableStaticServing = true
+# Effective per-file upload cap (MB). Streamlit defaults to 200 and silently caps
+# uploads there, so a larger app-side limit would be unreachable; pin it
+# explicitly and keep it in sync with nova.config.MAX_FILE_SIZE.
+maxUploadSize = 200

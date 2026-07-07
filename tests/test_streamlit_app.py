@@ -349,7 +349,7 @@ class TestRun:
         streamlit_app._run("key", [big, ok], None, "")
 
         mock_st.error.assert_called_once_with(
-            "Skipped (exceeds 2 GiB): big.wav", icon=":material/error:"
+            "Skipped (exceeds 200 MB): big.wav", icon=":material/error:"
         )
         media = mock_deepgram_cls.return_value.listen.v1.media
         media.transcribe_file.assert_called_once()
