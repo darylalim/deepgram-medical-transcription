@@ -1,6 +1,6 @@
 # Deepgram Medical Transcription
 
-Transcribe medical audio with the Deepgram Nova-3 Medical model through a **Streamlit UI** built on a framework-free core (`nova/`) that handles option building, batching, and response parsing.
+Streamlit application for medical transcription using Deepgram Nova, built on a framework-free core (`nova/`) that handles option building, batching, and response parsing.
 
 ## Setup
 

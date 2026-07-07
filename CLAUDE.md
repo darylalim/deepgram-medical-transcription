@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Transcribe medical audio with the Deepgram Nova-3 Medical model.
+Streamlit application for medical transcription using Deepgram Nova.
 
 A Streamlit-free core (`nova/`) is consumed **in-process** by the Streamlit UI (`streamlit_app.py`): it builds options, runs batches, and parses responses, keeping that logic framework-free and unit-testable independent of the UI.
 
