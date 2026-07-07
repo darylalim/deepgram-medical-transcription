@@ -23,8 +23,8 @@ When working with Python, invoke the relevant `/astral:<skill>` for uv, ty, and 
 
 `.claude/settings.json` (tracked/shared) wires three scripts in `.claude/hooks/`, each launched via `bash` with `$CLAUDE_PROJECT_DIR` so they use the project's pinned tools; **personal overrides belong in `.claude/settings.local.json` (gitignored)**. Newly added or changed hooks require review before they fire (run `/hooks`, or restart the session). All three are covered by `tests/test_hooks.py`.
 
-- **`block-secrets.sh`** (PreToolUse `Edit|Write|MultiEdit`) — denies edits to `.env` / `.env.*` / `*/secrets.toml` with exit 2, leaving the tracked `.env.example` editable; enforces the PHI/secrets policy.
-- **`py-checks.sh`** (PostToolUse `Edit|Write|MultiEdit`) — on an edited `.py` **under the project root**, runs `ruff format` → `ruff check --fix` → `ty check`; a type regression is surfaced back to Claude via exit 2. No-ops on non-`.py` or out-of-project paths (single stdin parse, so format always precedes the type check).
+- **`block-secrets.sh`** (PreToolUse `Edit|Write|MultiEdit`) — denies edits to `.env` / `.env.*` / `secrets.toml` / `.secrets.toml` / `.envrc` **case-insensitively** (so `.ENV` can't slip past on a case-insensitive filesystem) with exit 2, leaving the tracked `.env.example` editable. **Fails closed** (exit 2) when `jq` is missing rather than silently allowing the edit; enforces the PHI/secrets policy.
+- **`py-checks.sh`** (PostToolUse `Edit|Write|MultiEdit`) — on an edited `.py` **under the project root**, runs `ruff format`, then surfaces any **unresolved ruff lint** and/or **`ty` type** regression back to Claude via exit 2 (`ruff --fix` autofixes first; whatever remains is reported). No-ops on non-`.py` or out-of-project paths. Format/lint/type live in one script — a hook reads stdin once, so the steps can't be split across chained hooks — and run in sequence.
 - **`pytest-on-stop.sh`** (Stop) — runs `uv run pytest` when a turn finishes and blocks the stop (exit 2) on failure; a `stop_hook_active` guard prevents an infinite fix-loop.
 
 ## Architecture
