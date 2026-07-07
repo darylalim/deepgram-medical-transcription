@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Streamlit application for medical transcription using Deepgram Nova.
+Streamlit application for medical transcription using Deepgram's Nova-3 Medical model.
 
 A Streamlit-free core (`nova/`) is consumed **in-process** by the Streamlit UI (`streamlit_app.py`): it builds options, runs batches, and parses responses, keeping that logic framework-free and unit-testable independent of the UI.
 
@@ -35,7 +35,7 @@ When working with Python, invoke the relevant `/astral:<skill>` for uv, ty, and 
 
 ### Core — `nova/` (imports no streamlit)
 
-- **`config.py`** — the single source of truth for constants: `MODEL` (`nova-3-medical`), `LANGUAGES` (8 English variants — Nova-3 Medical is English-only), `REDACT_GROUPS` ordered **PII-first** (`pii`/`phi`/`pci`/`numbers`; PHI labeled to flag that it strips clinical content), `DEFAULT_LANGUAGE`/`DEFAULT_SMART_FORMAT`/`DEFAULT_DICTATION`/`DEFAULT_MEASUREMENTS`/`DEFAULT_DIARIZE`, `MAX_KEYTERMS`/`MAX_UPLOADS`/`MAX_CONCURRENCY`/`MAX_FILE_SIZE`, `AUDIO_EXTENSIONS`, and `has_audio_extension()`.
+- **`config.py`** — the single source of truth for constants: `MODEL` (`nova-3-medical`), `LANGUAGES` (8 English variants — Nova-3 Medical is English-only), `REDACT_GROUPS` ordered **PII-first** (`pii`/`phi`/`pci`/`numbers`; PHI labeled to flag that it strips clinical content), `DEFAULT_LANGUAGE`/`DEFAULT_SMART_FORMAT`/`DEFAULT_DICTATION`/`DEFAULT_MEASUREMENTS`/`DEFAULT_DIARIZE`, `MAX_KEYTERMS`/`MAX_UPLOADS`/`MAX_CONCURRENCY`/`MAX_FILE_SIZE` (200 MiB, pinned to match `.streamlit/config.toml`'s `[server].maxUploadSize = 200` — see Configuration), `AUDIO_EXTENSIONS`, and `has_audio_extension()`.
 - **`transcribe.py`**:
   - `build_options(*, keyterms=None, language=None, smart_format, dictation, measurements, diarize, redact=None)` — the kwargs dict for the Deepgram call. `model` + `smart_format` are **always** sent; off-by-default features are sent only when enabled — `diarize`/`measurements`, and `dictation` (which also forces `punctuate=True`) — plus `keyterm`/`language` only when truthy. `redact` (typed as a single `str` by the SDK) goes through `request_options["additional_query_parameters"]={"redact":[...]}`, which is omitted entirely when unset.
   - `ItemResult` dataclass `{index, label, response, error}` — `error` is `str(exc)` with no prefix; the calling adapter owns presentation.
@@ -61,7 +61,7 @@ Visual theming lives in `.streamlit/config.toml` — shared `[theme]` settings p
 
 The only env var is `DEEPGRAM_API_KEY` (server-side only), loaded from `.env` (gitignored; see `.env.example`) via python-dotenv; the UI also prompts for it inline if unset.
 
-The Streamlit UI's visual theme is non-secret config in `.streamlit/config.toml` (tracked); secrets (`.env`/`.env.*`, `.streamlit/secrets.toml`) are gitignored. The theme self-hosts Inter / JetBrains Mono as WOFF2 in `static/` (served at `app/static/*` via `[server].enableStaticServing`), so **no request leaves the app to a third-party font CDN**; faces fall back to the system sans/mono stack if they fail to load. See `static/FONTS.md` for attribution (both are SIL OFL 1.1).
+The Streamlit UI's visual theme is non-secret config in `.streamlit/config.toml` (tracked); secrets (`.env`/`.env.*`, `.streamlit/secrets.toml`) are gitignored. The theme self-hosts Inter / JetBrains Mono as WOFF2 in `static/` (served at `app/static/*` via `[server].enableStaticServing`), so **no request leaves the app to a third-party font CDN**; faces fall back to the system sans/mono stack if they fail to load. See `static/FONTS.md` for attribution (both are SIL OFL 1.1). The `[server]` block also pins `maxUploadSize = 200` (MB) — the effective per-file upload cap — which must stay in sync with `nova.config.MAX_FILE_SIZE`: Streamlit silently caps uploads at its 200 MB default, so a larger app-side guard would be unreachable (as the former 2 GiB cap was). The oversize `st.error` derives its size from `MAX_FILE_SIZE` (`f"Skipped (exceeds {MAX_FILE_SIZE // (1024 * 1024)} MB): …"`), keeping the limit in one place.
 
 ## License
 
