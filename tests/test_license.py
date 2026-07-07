@@ -15,7 +15,9 @@ checks assert the ``LICENSE`` body is MIT *and* that ``pyproject`` declares the
 ``MIT`` SPDX id, so swapping one without the other (an Apache ``LICENSE`` under a
 ``MIT`` SPDX id, or vice versa) trips a check. Parsing ``pyproject`` with
 ``tomllib`` (rather than substring-matching the raw text) also rejects the legacy
-table form ``license = {text = "MIT"}`` — only the modern SPDX string passes.
+table form ``license = {text = "MIT"}`` — only the modern SPDX string passes. The
+``LICENSE`` copyright holder is likewise tied to ``[project].authors`` so the two
+copies of that name can't drift.
 """
 
 import re
@@ -38,7 +40,10 @@ _MIT_MARKERS = (
     "Permission is hereby granted, free of charge",
     'THE SOFTWARE IS PROVIDED "AS IS"',
 )
-_COPYRIGHT = re.compile(r"Copyright \(c\) \d{4} Daryl Lim")
+# Captures the holder so `test_copyright_holder_matches_authors` can tie it to
+# pyproject; the optional `-YYYY` tolerates a future year range (e.g. 2026-2027)
+# rather than hard-failing on it.
+_COPYRIGHT = re.compile(r"Copyright \(c\) \d{4}(?:-\d{4})? (?P<holder>.+)")
 
 
 @pytest.fixture(scope="module")
@@ -63,11 +68,23 @@ def test_license_body_is_mit(license_text: str, marker: str) -> None:
     assert marker in license_text, f"LICENSE missing MIT marker: {marker!r}"
 
 
-def test_license_names_the_copyright_holder(license_text: str) -> None:
-    # Year-agnostic (matches any 4-digit year) but pins holder and the standard
-    # `Copyright (c) <year> <holder>` shape.
+def test_license_has_a_copyright_line(license_text: str) -> None:
+    # Validates the `Copyright (c) <year|range> <holder>` shape; the holder name
+    # itself is tied to pyproject by test_copyright_holder_matches_authors.
     assert _COPYRIGHT.search(license_text), (
-        "LICENSE missing a `Copyright (c) <year> Daryl Lim` line"
+        "LICENSE missing a `Copyright (c) <year> <holder>` line"
+    )
+
+
+def test_copyright_holder_matches_authors(license_text: str, pyproject: dict) -> None:
+    # The LICENSE copyright holder and pyproject [project].authors are two copies
+    # of one fact — tie them so they can't silently drift apart.
+    name = pyproject["project"]["authors"][0]["name"]
+    match = _COPYRIGHT.search(license_text)
+    assert match is not None, "LICENSE has no copyright line"
+    assert name in match.group("holder"), (
+        f"pyproject author {name!r} is not the LICENSE copyright holder "
+        f"({match.group('holder')!r})"
     )
 
 
@@ -81,6 +98,17 @@ def test_pyproject_declares_mit_spdx(pyproject: dict) -> None:
     assert "LICENSE" in project.get("license-files", []), (
         "pyproject [project].license-files must point at LICENSE"
     )
+
+
+def test_license_files_all_resolve(pyproject: dict) -> None:
+    # Every path pyproject points at must exist — catches a typo'd pointer
+    # (LICENCE, LICENSE.txt) that the membership check above would miss.
+    license_files = pyproject["project"].get("license-files", [])
+    assert license_files, "pyproject [project].license-files is empty"
+    for rel in license_files:
+        assert (ROOT / rel).is_file(), (
+            f"license-files entry {rel!r} does not resolve to a file"
+        )
 
 
 def test_readme_documents_the_license() -> None:
