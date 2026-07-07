@@ -1,5 +1,7 @@
 # Deepgram Medical Transcription
 
+[![CI](https://github.com/darylalim/deepgram-medical-transcription/actions/workflows/ci.yml/badge.svg)](https://github.com/darylalim/deepgram-medical-transcription/actions/workflows/ci.yml)
+
 Streamlit application for medical transcription using Deepgram Nova, built on a framework-free core (`nova/`) that handles option building, batching, and response parsing.
 
 ## Setup
@@ -58,7 +60,9 @@ uv run ruff format .  # format
 uv run ty check .     # type check
 ```
 
-Tests mock the Deepgram client — no real API calls. The core is tested directly (`tests/test_transcribe.py`, `tests/test_results.py`, `tests/test_subtitles.py`), the Streamlit adapter in `tests/test_streamlit_app.py`, and the dev hooks in `tests/test_hooks.py`.
+Tests mock the Deepgram client — no real API calls. The core is tested directly (`tests/test_transcribe.py`, `tests/test_results.py`, `tests/test_subtitles.py`), the Streamlit adapter in `tests/test_streamlit_app.py`, the dev hooks in `tests/test_hooks.py`, and the CI workflow itself in `tests/test_ci_workflow.py`.
+
+**Continuous integration** — `.github/workflows/ci.yml` (GitHub Actions) runs these same four gates on every push to `main` and every pull request, plus `uv sync --locked` to catch lockfile drift. It needs no secrets: tests mock Deepgram, so CI never calls the API.
 
 ## Claude Code hooks
 

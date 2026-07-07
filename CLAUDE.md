@@ -27,6 +27,10 @@ When working with Python, invoke the relevant `/astral:<skill>` for uv, ty, and 
 - **`py-checks.sh`** (PostToolUse `Edit|Write|MultiEdit`) — on an edited `.py` **under the project root**, runs `ruff format`, then surfaces any **unresolved ruff lint** and/or **`ty` type** regression back to Claude via exit 2 (`ruff --fix` autofixes first; whatever remains is reported). No-ops on non-`.py` or out-of-project paths. Format/lint/type live in one script — a hook reads stdin once, so the steps can't be split across chained hooks — and run in sequence.
 - **`pytest-on-stop.sh`** (Stop) — runs `uv run pytest` when a turn finishes and blocks the stop (exit 2) on failure; a `stop_hook_active` guard prevents an infinite fix-loop.
 
+## Continuous integration
+
+`.github/workflows/ci.yml` (GitHub Actions) runs the **same four gates the hooks enforce locally** — `ruff format --check`, `ruff check`, `ty check`, `pytest` — plus `uv sync --locked` (fails on lockfile drift), on push to `main` and on every pull request. Installs via `astral-sh/setup-uv` (cached) pinned to Python 3.12. **Needs no secrets**: tests mock `DeepgramClient`, so CI never makes a real API call (upholds the PHI policy). Least-privilege (`permissions: contents: read`), a `concurrency` group cancels superseded runs, and no untrusted `github.event.*`/`github.head_ref` input is interpolated into a shell step. The workflow is itself guarded by `tests/test_ci_workflow.py` (static text/regex assertions — **no YAML-parser dependency**).
+
 ## Architecture
 
 ### Core — `nova/` (imports no streamlit)
@@ -57,7 +61,7 @@ Visual theming lives in `.streamlit/config.toml` — shared `[theme]` settings p
 
 The only env var is `DEEPGRAM_API_KEY` (server-side only), loaded from `.env` (gitignored; see `.env.example`) via python-dotenv; the UI also prompts for it inline if unset.
 
-The Streamlit UI's visual theme is non-secret config in `.streamlit/config.toml` (tracked); secrets (`.env`, `.streamlit/secrets.toml`) are gitignored. The theme self-hosts Inter / JetBrains Mono as WOFF2 in `static/` (served at `app/static/*` via `[server].enableStaticServing`), so **no request leaves the app to a third-party font CDN**; faces fall back to the system sans/mono stack if they fail to load. See `static/FONTS.md` for attribution (both are SIL OFL 1.1).
+The Streamlit UI's visual theme is non-secret config in `.streamlit/config.toml` (tracked); secrets (`.env`/`.env.*`, `.streamlit/secrets.toml`) are gitignored. The theme self-hosts Inter / JetBrains Mono as WOFF2 in `static/` (served at `app/static/*` via `[server].enableStaticServing`), so **no request leaves the app to a third-party font CDN**; faces fall back to the system sans/mono stack if they fail to load. See `static/FONTS.md` for attribution (both are SIL OFL 1.1).
 
 ## PHI logging policy (non-negotiable)
 
