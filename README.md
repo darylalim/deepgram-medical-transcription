@@ -58,4 +58,8 @@ uv run ruff format .  # format
 uv run ty check .     # type check
 ```
 
-Tests mock the Deepgram client — no real API calls. The core is tested directly (`tests/test_transcribe.py`, `tests/test_results.py`, `tests/test_subtitles.py`) and the Streamlit adapter in `tests/test_streamlit_app.py`.
+Tests mock the Deepgram client — no real API calls. The core is tested directly (`tests/test_transcribe.py`, `tests/test_results.py`, `tests/test_subtitles.py`), the Streamlit adapter in `tests/test_streamlit_app.py`, and the dev hooks in `tests/test_hooks.py`.
+
+## Claude Code hooks
+
+The repo ships **Claude Code hooks** in `.claude/` (shared via `settings.json`) that run these checks automatically while you work: they format and type-check edited Python, block edits to secret files (`.env`, `.streamlit/secrets.toml`), and run the test suite when a turn finishes. Newly added hooks need approval before firing (`/hooks`). Personal overrides go in `.claude/settings.local.json` (gitignored). See CLAUDE.md for the full breakdown.

@@ -16,3 +16,6 @@ subtitles.srt
 
 # OS
 .DS_Store
+
+# Claude Code (.claude/settings.json + hooks/ are tracked; personal overrides are not)
+.claude/settings.local.json

@@ -19,6 +19,14 @@ uv run pytest                                                    # Test
 
 When working with Python, invoke the relevant `/astral:<skill>` for uv, ty, and ruff to ensure best practices are followed.
 
+## Claude Code hooks
+
+`.claude/settings.json` (tracked/shared) wires three scripts in `.claude/hooks/`, each launched via `bash` with `$CLAUDE_PROJECT_DIR` so they use the project's pinned tools; **personal overrides belong in `.claude/settings.local.json` (gitignored)**. Newly added or changed hooks require review before they fire (run `/hooks`, or restart the session). All three are covered by `tests/test_hooks.py`.
+
+- **`block-secrets.sh`** (PreToolUse `Edit|Write|MultiEdit`) — denies edits to `.env` / `.env.*` / `*/secrets.toml` with exit 2, leaving the tracked `.env.example` editable; enforces the PHI/secrets policy.
+- **`py-checks.sh`** (PostToolUse `Edit|Write|MultiEdit`) — on an edited `.py` **under the project root**, runs `ruff format` → `ruff check --fix` → `ty check`; a type regression is surfaced back to Claude via exit 2. No-ops on non-`.py` or out-of-project paths (single stdin parse, so format always precedes the type check).
+- **`pytest-on-stop.sh`** (Stop) — runs `uv run pytest` when a turn finishes and blocks the stop (exit 2) on failure; a `stop_hook_active` guard prevents an infinite fix-loop.
+
 ## Architecture
 
 ### Core — `nova/` (imports no streamlit)
