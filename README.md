@@ -76,9 +76,13 @@ uv run ruff format .  # format
 uv run ty check .     # type check
 ```
 
-Tests mock the Deepgram client — no real API calls. The core is tested directly (`tests/test_transcribe.py`, `tests/test_results.py`, `tests/test_subtitles.py`), the Streamlit adapter in `tests/test_streamlit_app.py`, the dev hooks in `tests/test_hooks.py`, and the CI workflow itself in `tests/test_ci_workflow.py`.
+Tests mock the Deepgram client — no real API calls. The core is tested directly (`tests/test_transcribe.py`, `tests/test_results.py`, `tests/test_subtitles.py`), the Streamlit adapter in `tests/test_streamlit_app.py`, the dev hooks in `tests/test_hooks.py`, and the project's config — the CI and release workflows, the Dependabot config, and the license — in `tests/test_ci_workflow.py`, `tests/test_release_workflow.py`, `tests/test_dependabot.py`, and `tests/test_license.py`.
 
 **Continuous integration** — `.github/workflows/ci.yml` (GitHub Actions) runs these same four gates plus `uv sync --locked` across a Python 3.12 + 3.13 matrix on every push to `main`, every pull request, and manual dispatch. It needs no secrets: tests mock Deepgram, so CI never calls the API.
+
+## Releases
+
+Versioning is automated with [release-please](https://github.com/googleapis/release-please). Commits to `main` follow [Conventional Commits](https://www.conventionalcommits.org) (`feat:` → minor, `fix:` → patch); release-please maintains a release pull request that, when merged, bumps the version in `pyproject.toml`, updates `CHANGELOG.md`, tags the release, and publishes a [GitHub Release](https://github.com/darylalim/deepgram-medical-transcription/releases) — no manual version bumps.
 
 ## Claude Code hooks
 
