@@ -15,7 +15,7 @@ Streamlit application for medical transcription using Deepgram's Nova-3 Medical 
 - **Redaction** of PII, PHI, PCI, and numbers for de-identification.
 - **Smart formatting**, spoken **dictation** commands, and **measurement** abbreviation.
 - **Downloads** — plain-text transcript and timestamped, speaker-labeled **SRT** subtitles.
-- **Light and dark themes** with self-hosted fonts (no third-party font CDN).
+- **Light and dark themes**, toggled from the Settings menu, with self-hosted fonts (no third-party CDN).
 
 ## Prerequisites
 
@@ -59,8 +59,6 @@ Once a request runs:
 - **Metrics & downloads** — each transcript is topped with **Duration** and **Confidence** metric cards and a **Download transcript** (`.txt`) button; a single result also offers **Download subtitles** (`.srt`, timestamped speaker-labeled cues).
 - **Audio player** — pinned above the scrollable transcript. Inline audio over 25 MB — a large upload or a long recording — shows a notice instead of the player to limit memory; remote URLs always get one.
 - **Diarized view** — with **Diarize** on, the transcript is split into color-coded `Speaker 1:`, `Speaker 2:`, … lines.
-
-The app ships light and dark themes (self-hosted Inter for UI type, JetBrains Mono for the JSON view) — switch modes via the Settings menu.
 
 **Troubleshooting** — if transcription fails with a per-file error (rather than the app refusing to start), check that `DEEPGRAM_API_KEY` is valid and has available credit: an invalid or expired key is reported as a per-item transcription failure, not a startup error.
 
