@@ -203,6 +203,9 @@ def _run(api_key: str, uploaded_files: list, recording: Any, url_text: str) -> N
                 icon=_ICON_ERROR,
             )
             return
+        # Backstop: Streamlit already 413s uploads over server.maxUploadSize
+        # (== MAX_FILE_SIZE) before they reach _run, so this fires only if those
+        # two limits ever drift apart.
         oversized = [f.name for f in uploaded_files if f.size > MAX_FILE_SIZE]
         if oversized:
             st.error(

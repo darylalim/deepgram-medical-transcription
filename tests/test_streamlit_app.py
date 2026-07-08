@@ -344,7 +344,7 @@ class TestRun:
         media.transcribe_file.assert_not_called()
 
     def test_oversized_files_skipped_but_others_run(self, mock_deepgram_cls, mock_st):
-        big = mock_upload("big.wav", b"x", size=3 * 1024 * 1024 * 1024)
+        big = mock_upload("big.wav", b"x", size=streamlit_app.MAX_FILE_SIZE + 1)
         ok = mock_upload("ok.wav", b"ok")
         streamlit_app._run("key", [big, ok], None, "")
 
