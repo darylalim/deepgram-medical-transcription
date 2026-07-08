@@ -1,0 +1,30 @@
+name: release-please
+
+on:
+  push:
+    branches: [main]
+
+# release-please needs write scopes (unlike the read-only ci.yml): `contents` to
+# push the release-PR branch and, on merge, create the tag + GitHub Release;
+# `pull-requests` to open/update the release PR. Kept to exactly those two.
+permissions:
+  contents: write
+  pull-requests: write
+
+# Serialize overlapping runs so two quick pushes to main don't race the same
+# release branch. Unlike ci.yml (cancel-in-progress: true), never cancel a run
+# that may be mid-tag / mid-release.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: googleapis/release-please-action@5c625bfb5d1ff62eadeeb3772007f7f66fdcf071 # v4.4.1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json

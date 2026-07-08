@@ -1,0 +1,11 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "bootstrap-sha": "c5d25a7fe14ea787ca2fd421d3c26afe5f1042a6",
+  "packages": {
+    ".": {
+      "release-type": "python",
+      "package-name": "deepgram-medical-transcription",
+      "include-component-in-tag": false
+    }
+  }
+}
