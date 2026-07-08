@@ -23,7 +23,3 @@ subtitles.srt
 
 # Claude Code (.claude/settings.json + hooks/ are tracked; personal overrides are not)
 .claude/settings.local.json
-
-# Release automation is fully tracked, not ignored: release-please-config.json,
-# .release-please-manifest.json, and the release-please-generated CHANGELOG.md
-# carry no secrets and drive the GitHub release flow, so they stay in git.

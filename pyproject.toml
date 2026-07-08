@@ -1,7 +1,7 @@
 [project]
 name = "deepgram-medical-transcription"
-# Bumped by release-please from Conventional Commits on release — do not
-# hand-edit; it is kept in sync with .release-please-manifest.json.
+# Bump by hand when cutting a release, then tag it:
+#   git tag vX.Y.Z && git push origin vX.Y.Z   (release.yml publishes the Release)
 version = "0.8.1"
 description = "Streamlit application for medical transcription using Deepgram's Nova-3 Medical model."
 readme = "README.md"

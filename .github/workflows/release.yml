@@ -1,33 +1,37 @@
-name: release-please
+name: release
 
+# Cut a release by pushing a version tag, e.g.
+#   git tag v0.8.1 && git push origin v0.8.1
+# This publishes a GitHub Release for that tag with auto-generated notes. It never
+# opens or approves pull requests, so it needs no `pull-requests` scope and cannot
+# hit the "GitHub Actions is not permitted to create or approve pull requests"
+# repo/org policy. Version bumps in pyproject.toml are made by hand before tagging.
 on:
   push:
-    branches: [main]
+    tags:
+      - "v*"
 
-# release-please needs write scopes (unlike the read-only ci.yml): `contents` to
-# push the release-PR branch and, on merge, create the tag + GitHub Release;
-# `pull-requests` to open/update the release PR; `issues` to create/apply the
-# `autorelease:*` labels it uses to find and tag that PR. The three scopes
-# release-please documents — no broader.
+# Only the scope needed to create the GitHub Release for the pushed tag.
 permissions:
   contents: write
-  issues: write
-  pull-requests: write
 
-# Serialize overlapping runs so two quick pushes to main don't race the same
-# release branch. Unlike ci.yml (cancel-in-progress: true), never cancel a run
-# that may be mid-tag / mid-release.
+# Serialize per tag and never abort a half-published release.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: release-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
-  release-please:
+  release:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: googleapis/release-please-action@5c625bfb5d1ff62eadeeb3772007f7f66fdcf071 # v4.4.1
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          config-file: release-please-config.json
-          manifest-file: .release-please-manifest.json
+      - name: Publish GitHub Release
+        # `gh` is preinstalled on GitHub runners (no third-party action to
+        # SHA-pin). The tag and repo come from the default GITHUB_REF_NAME /
+        # GITHUB_REPOSITORY env vars — not a `${{ }}` shell interpolation — so
+        # there is no script-injection surface. `--verify-tag` refuses to publish
+        # if the tag is missing; `--generate-notes` builds notes from the merged
+        # PRs / commits since the previous release.
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --generate-notes --verify-tag

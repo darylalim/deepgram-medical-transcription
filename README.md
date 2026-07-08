@@ -82,7 +82,13 @@ Tests mock the Deepgram client — no real API calls. The core is tested directl
 
 ## Releases
 
-Versioning is automated with [release-please](https://github.com/googleapis/release-please). Commits to `main` follow [Conventional Commits](https://www.conventionalcommits.org) (`feat:` → minor, `fix:` → patch); release-please maintains a release pull request that, when merged, bumps the version in `pyproject.toml`, updates `CHANGELOG.md`, tags the release, and publishes a [GitHub Release](https://github.com/darylalim/deepgram-medical-transcription/releases) — no manual version bumps.
+Releases are cut by hand. Bump `version` in `pyproject.toml`, commit, then push a `vX.Y.Z` tag:
+
+```bash
+git tag v0.8.1 && git push origin v0.8.1
+```
+
+`.github/workflows/release.yml` picks up the tag and publishes a [GitHub Release](https://github.com/darylalim/deepgram-medical-transcription/releases) with notes auto-generated from the merged pull requests since the previous release. The workflow only ever *creates* Releases (never pull requests), so it needs no extra permissions.
 
 ## Claude Code hooks
 
