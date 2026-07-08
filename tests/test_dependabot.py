@@ -54,7 +54,11 @@ def test_github_actions_ecosystem_is_rooted_at_repo_root(config: dict) -> None:
     # `directory: /` (or a `directories` list containing "/") makes the
     # github-actions ecosystem watch ALL workflows under .github/workflows/,
     # so ci.yml AND release.yml pins are both covered by this one entry.
-    dirs = update.get("directories") or [update.get("directory")]
+    # Normalize to a list first so the membership check is always exact, never a
+    # substring match (a mis-authored scalar `directories: "/foo"` must not pass).
+    raw = update.get("directories")
+    raw = raw if raw is not None else update.get("directory")
+    dirs = raw if isinstance(raw, list) else [raw]
     assert "/" in dirs, f"github-actions updates must be rooted at '/', got {dirs!r}"
 
 

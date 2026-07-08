@@ -6,9 +6,12 @@ on:
 
 # release-please needs write scopes (unlike the read-only ci.yml): `contents` to
 # push the release-PR branch and, on merge, create the tag + GitHub Release;
-# `pull-requests` to open/update the release PR. Kept to exactly those two.
+# `pull-requests` to open/update the release PR; `issues` to create/apply the
+# `autorelease:*` labels it uses to find and tag that PR. The three scopes
+# release-please documents — no broader.
 permissions:
   contents: write
+  issues: write
   pull-requests: write
 
 # Serialize overlapping runs so two quick pushes to main don't race the same

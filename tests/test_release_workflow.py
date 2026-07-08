@@ -10,8 +10,9 @@ hold:
 
 1. **The workflow drives release-please safely.** It parses, triggers only on
    push to ``main`` (never the write-privileged ``pull_request_target``), holds
-   *exactly* the two write scopes release-please needs (``contents`` +
-   ``pull-requests`` — no broader scope), never cancels a mid-release run, sets
+   *exactly* the three write scopes release-please needs (``contents`` +
+   ``issues`` + ``pull-requests`` — no broader scope), never cancels a
+   mid-release run, sets
    a job timeout, has no ``run:`` shell surface, and SHA-pins the action with a
    ``# vX.Y.Z`` comment (mirroring ``ci.yml``'s hardening).
 2. **The three version sources agree.** ``release-please-config.json``'s package
@@ -20,7 +21,9 @@ hold:
    ``pyproject``'s ``[project].version``. release-please keeps those two moving
    together after every release, so drift means a broken bootstrap or a hand
    edit. The native ``python`` updater only bumps ``[project].version`` while it
-   stays *static* and no ``[tool.poetry]`` table shadows it, so both are pinned.
+   stays *static* (a ``dynamic`` version is silently skipped); a stray
+   ``[tool.poetry]`` table wouldn't shadow ``[project]`` (which wins) but would
+   drift stale, so both are pinned.
 
 Parsing (rather than substring matching) is what lets these catch a smuggled
 write scope, a trigger swap, an unpinned action, or a manifest/pyproject version
@@ -98,17 +101,21 @@ def test_workflow_is_valid_and_has_the_release_job(workflow: dict) -> None:
 
 def test_triggers_on_push_to_main_only(workflow: dict) -> None:
     on = _triggers(workflow)
-    assert "main" in on["push"]["branches"], "release must run on push to main"
-    assert "pull_request_target" not in on, (
-        "release must not use the write-privileged pull_request_target trigger"
-    )
+    # Push to main and nothing else — no pull_request(_target) surface where a
+    # fork could run release-please with its write scopes (workflow_dispatch,
+    # being manual and maintainer-only, stays permitted).
+    assert on["push"]["branches"] == ["main"], "release must run only on push to main"
+    assert "pull_request" not in on
+    assert "pull_request_target" not in on
 
 
 def test_permissions_are_exactly_the_release_scopes(workflow: dict) -> None:
-    # release-please needs write (unlike read-only ci.yml) — but ONLY these two.
-    # Exact equality rejects a smuggled id-token/actions/write-all scope.
+    # release-please needs write (unlike read-only ci.yml) — but ONLY these three
+    # (issues covers the autorelease:* labels it manages). Exact equality still
+    # rejects a smuggled id-token/actions/write-all scope.
     assert workflow.get("permissions") == {
         "contents": "write",
+        "issues": "write",
         "pull-requests": "write",
     }
 
@@ -143,8 +150,12 @@ def test_token_is_the_default_github_token(workflow: dict) -> None:
 
 def test_config_and_manifest_inputs_resolve_to_files(workflow: dict) -> None:
     with_ = _release_step(workflow)["with"]
-    assert (ROOT / with_["config-file"]).is_file()
-    assert (ROOT / with_["manifest-file"]).is_file()
+    # Tie the action's inputs to the exact files the version-agreement tests
+    # validate — not just *some* file — so a rename can't orphan the real config
+    # while the guards keep checking a stale one.
+    assert (ROOT / with_["config-file"]).resolve() == CONFIG.resolve()
+    assert (ROOT / with_["manifest-file"]).resolve() == MANIFEST.resolve()
+    assert CONFIG.is_file() and MANIFEST.is_file()
 
 
 def test_workflow_has_no_shell_run_surface(workflow: dict) -> None:
@@ -189,5 +200,6 @@ def test_pyproject_version_stays_static(pyproject: dict) -> None:
 
 
 def test_pyproject_has_no_poetry_table(pyproject: dict) -> None:
-    # A [tool.poetry] table would shadow [project] as the updater's version target.
+    # [project] wins over [tool.poetry] for the native updater, so a stray poetry
+    # table wouldn't break the bump — but its version would drift stale. Pin it out.
     assert "poetry" not in pyproject.get("tool", {})
