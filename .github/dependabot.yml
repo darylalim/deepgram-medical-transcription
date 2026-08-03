@@ -7,3 +7,10 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    # Batch every action bump into a single weekly PR rather than one PR per
+    # action, so one CI run and one merge cover the whole set. Security updates
+    # are ungrouped by default, so an urgent advisory still lands on its own.
+    groups:
+      github-actions:
+        patterns:
+          - "*"
