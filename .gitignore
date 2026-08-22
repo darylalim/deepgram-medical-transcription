@@ -3,6 +3,7 @@
 .env.*
 !.env.example
 .envrc
+.envrc.*
 # Secret TOML configs the block-secrets hook guards — keep them out of git too.
 # (.streamlit/config.toml themes are tracked; secrets are not.)
 secrets.toml

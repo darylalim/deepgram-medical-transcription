@@ -46,6 +46,18 @@ def run_hook(script, event, *, env_overrides=None):
     )
 
 
+def run_hook_raw(script, raw_stdin):
+    """Run a hook with arbitrary (possibly non-JSON) stdin."""
+    return subprocess.run(
+        [BASH, str(HOOKS_DIR / script)],
+        input=raw_stdin,
+        capture_output=True,
+        text=True,
+        cwd=str(REPO_ROOT),
+        env={**os.environ, "CLAUDE_PROJECT_DIR": str(REPO_ROOT)},
+    )
+
+
 def _edit_event(path):
     """An Edit/Write PostToolUse/PreToolUse payload targeting `path`."""
     return {"tool_input": {"file_path": str(path)}}
@@ -84,6 +96,8 @@ class TestBlockSecrets:
             ".secrets.toml",  # Dynaconf secrets file
             "secrets.toml",  # bare secrets.toml under the root (nested match)
             ".envrc",  # direnv
+            ".envrc.local",  # direnv source_env_if_exists target
+            ".ENVRC.LOCAL",
         ],
     )
     def test_denies_secret_files(self, relpath):
@@ -125,6 +139,13 @@ class TestBlockSecrets:
         )
         assert proc.returncode == 2
         assert "jq not found" in proc.stderr
+
+    def test_fails_closed_on_unparseable_event(self):
+        # jq present but the event is not JSON: the guard must refuse rather than
+        # capture jq's empty stdout and fall through to exit 0 (which it did).
+        proc = run_hook_raw("block-secrets.sh", "not json")
+        assert proc.returncode == 2
+        assert "unparseable hook event" in proc.stderr
 
 
 class TestPyChecks:
