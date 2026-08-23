@@ -15,7 +15,7 @@ Streamlit application for medical transcription using Deepgram's Nova-3 Medical 
 - **Redaction** of PII, PHI, PCI, and numbers for de-identification.
 - **Smart formatting**, spoken **dictation** commands, and **measurement** abbreviation.
 - **Downloads** — plain-text transcript and timestamped, speaker-labeled **SRT** subtitles.
-- **Light and dark themes**, toggled from the Settings menu, with self-hosted fonts (no third-party CDN).
+- **Nord dark theme** — a single locked palette (no light/dark toggle), with self-hosted fonts (no third-party CDN).
 
 ## Prerequisites
 

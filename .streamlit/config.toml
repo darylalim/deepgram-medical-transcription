@@ -1,22 +1,65 @@
-# Clinical theme for the Deepgram Medical Transcription UI.
-# Light + dark are both defined, which enables the in-app theme switcher (Settings
-# menu); the palette is one Tailwind-slate family, inverted for dark. Pure
-# configuration — no Python, so it never touches the test suite.
-
-# Mode-independent settings (apply to both light and dark).
+# Nord theme for the Deepgram Medical Transcription UI.
+# Arctic, north-bluish palette (Polar Night / Snow Storm / Frost / Aurora).
+#
+# SINGLE MODE, BY DESIGN. Only [theme] is defined — no [theme.light] / [theme.dark].
+# Streamlit exposes the Light/Dark/System switcher in the Settings menu *only* when
+# both mode tables exist, so one table locks the app to this palette and removes the
+# toggle. Adding either mode table back would restore the switcher.
+#
+# Pure configuration — no Python, so it never touches the test suite.
 [theme]
-baseRadius = "8px"
+base = "dark"
+
+# Core surfaces — Polar Night, layered lightest-on-top for depth.
+primaryColor = "#5E81AC"             # nord10 frost: Run button, active tab underline, focus rings
+# NOT nord8 #88C0D0, which is Nord's canonical accent. `primaryColor` is the background of the
+# type="primary" Run submit button, and Streamlit hardcodes that label white — there is no
+# `primaryTextColor` among the 277 theme options. Measured in-browser: white on #88C0D0 is
+# 2.00:1 (washed out); on nord10 it is 4.03:1. Same Frost family, readable button.
+backgroundColor = "#2E3440"          # nord0 main canvas
+secondaryBackgroundColor = "#3B4252" # nord1 widget / container backgrounds
+codeBackgroundColor = "#3B4252"      # nord1 — JSON tab blocks match the widget surface
+textColor = "#ECEFF4"                # nord6 snow storm body text (~13:1 on nord0)
+codeTextColor = "#D8DEE9"            # nord4 — code sits a step quieter than body text
+linkColor = "#81A1C1"                # nord9 frost
+borderColor = "#4C566A"              # nord3 widget borders
+
+# Shape — Nord's convention is a tighter radius than Streamlit's default.
+baseRadius = "4px"
+buttonRadius = "4px"
 showWidgetBorder = true
+showSidebarBorder = true             # divider between the Features sidebar and the output area
 linkUnderline = false                # color alone signals links — cleaner than underlines
+
 # Typography — Inter (UI) and JetBrains Mono (JSON/code view), SELF-HOSTED from
 # static/ (see the [[theme.fontFaces]] tables below + [server].enableStaticServing).
-# No request ever leaves the app to a third-party font CDN — important for a PHI app;
-# Streamlit falls back to the system sans / mono stack if a face fails to load.
+# The upstream Nord template loads these two families from Google Fonts; that is
+# deliberately NOT used here — no request ever leaves the app to a third-party font
+# CDN, which matters for a PHI app. Streamlit falls back to the system sans / mono
+# stack if a face fails to load.
 font = "Inter"
 codeFont = "'JetBrains Mono'"
-# Heading scale. The app's only visible heading is the h1 st.title; this 1-element
-# array calms Streamlit's shouty 2.75rem default and leaves h2–h6 at their defaults.
-headingFontSizes = ["2.25rem"]       # ~36px at the 16px base (was 2.75rem / 44px)
+codeFontSize = "0.875rem"
+baseFontSize = 14
+baseFontWeight = 400
+headingFontSizes = ["32px", "24px", "20px", "16px", "14px", "12px"]
+headingFontWeights = [600, 600, 600, 600, 600, 600]
+
+# Semantic palette — Frost + Aurora. These back the diarized speaker-label
+# highlights (`:{color}-background[**Speaker N:**]` from _SPEAKER_COLORS, which is
+# ("blue", "green", "violet", "orange", "red", "gray")) and the status accents.
+# All six names must stay defined or a speaker line falls back to Streamlit's default.
+blueColor = "#81A1C1"                # nord9  — Speaker 1
+greenColor = "#A3BE8C"               # nord14 — Speaker 2 / success accents
+violetColor = "#B48EAD"              # nord15 — Speaker 3
+orangeColor = "#D08770"              # nord12 — Speaker 4
+redColor = "#BF616A"                 # nord11 — Speaker 5 / error accents (st.error)
+grayColor = "#D8DEE9"                # nord4  — Speaker 6 / unlabeled-speaker fallback
+yellowColor = "#EBCB8B"              # nord13 — warning accents (st.warning)
+
+# Unused today (the app renders no charts), kept so st.metric sparklines and any
+# future chart inherit the Nord ramp instead of Streamlit's stock categorical colors.
+chartCategoricalColors = ["#88C0D0", "#81A1C1", "#5E81AC", "#A3BE8C", "#EBCB8B", "#D08770", "#BF616A"]
 
 [[theme.fontFaces]]
 family = "Inter"
@@ -43,40 +86,13 @@ family = "JetBrains Mono"
 url = "app/static/jetbrains-mono-500.woff2"
 weight = 500
 
-# Light mode — clinical blue on white.
-[theme.light]
-primaryColor = "#2563EB"             # clinical blue: buttons, links, active tab underline
-backgroundColor = "#FFFFFF"
-secondaryBackgroundColor = "#F1F5F9" # widget / code / container backgrounds (slate-100)
-textColor = "#0F172A"                # slate-900 body text
-linkColor = "#2563EB"
-codeBackgroundColor = "#F1F5F9"
-borderColor = "#CBD5E1"              # slate-300 widget borders
-# Semantic palette — harmonizes the diarized speaker-label highlights
-# (`:{color}-background[**Speaker N:**]` from _SPEAKER_COLORS) and status accents.
-blueColor = "#2563EB"                # Speaker 1 (matches the clinical primary)
-greenColor = "#16A34A"               # Speaker 2 / success accents
-violetColor = "#7C3AED"              # Speaker 3
-orangeColor = "#EA580C"              # Speaker 4
-redColor = "#DC2626"                 # Speaker 5 / error accents (st.error)
-grayColor = "#475569"                # Speaker 6 / unlabeled-speaker fallback (slate-600)
-
-# Dark mode — clinical slate (light mode's slate tones inverted).
-[theme.dark]
-primaryColor = "#2563EB"             # kept — ≥4.5:1 contrast with white button text (clears WCAG AA)
-backgroundColor = "#0F172A"          # slate-900 (deep clinical slate, not pure black)
-secondaryBackgroundColor = "#1E293B" # slate-800 widget / container backgrounds
-textColor = "#E2E8F0"                # slate-200 body text (≥13:1 on the background)
-linkColor = "#60A5FA"                # blue-400 — brightened for dark-bg readability
-codeBackgroundColor = "#1E293B"
-borderColor = "#334155"              # slate-700 widget borders
-# Semantic palette — brightened -400 shades so the auto-derived dark tints stay vivid.
-blueColor = "#60A5FA"                # Speaker 1
-greenColor = "#4ADE80"               # Speaker 2 / success accents
-violetColor = "#A78BFA"              # Speaker 3
-orangeColor = "#FB923C"              # Speaker 4
-redColor = "#F87171"                 # Speaker 5 / error accents (st.error)
-grayColor = "#94A3B8"                # Speaker 6 / unlabeled-speaker fallback (slate-400)
+# Sidebar (the Features form) — one Polar Night step lighter than the main canvas,
+# so app-level settings read as a distinct surface from the transcript output.
+[theme.sidebar]
+backgroundColor = "#3B4252"          # nord1
+secondaryBackgroundColor = "#434C5E" # nord2 — widgets inside the sidebar
+codeBackgroundColor = "#434C5E"      # nord2
+borderColor = "#4C566A"              # nord3
 
 # Serve the bundled fonts under static/ at app/static/* (referenced by the
 # [[theme.fontFaces]] URLs above). Keeps typography first-party — no font CDN.
@@ -86,3 +102,13 @@ enableStaticServing = true
 # uploads there, so a larger app-side limit would be unreachable; pin it
 # explicitly and keep it in sync with nova.config.MAX_FILE_SIZE.
 maxUploadSize = 200
+
+# Opt out of Streamlit's anonymous usage telemetry, which DEFAULTS TO TRUE and
+# posts to a third-party endpoint (webhooks.fivetran.com) on every session —
+# observed as 5 requests per page load before this was set. It carries usage
+# metrics, not transcript content, but this app's PHI policy is "assume every
+# request/response carries PHI", and an unaudited third-party beacon from a
+# clinical-transcription page is not worth defending. With this false, the only
+# traffic the app originates is the Deepgram API call itself.
+[browser]
+gatherUsageStats = false
