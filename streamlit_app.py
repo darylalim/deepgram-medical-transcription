@@ -9,6 +9,7 @@ from typing import Any
 import streamlit as st
 from deepgram import DeepgramClient
 from dotenv import load_dotenv
+from streamlit.errors import StreamlitSecretNotFoundError
 
 from nova.config import (
     AUDIO_EXTENSIONS as _AUDIO_EXTENSIONS,
@@ -72,6 +73,24 @@ def _playback_source(value: object) -> bytes | str | None:
     if isinstance(value, bytes):
         return value if len(value) <= MAX_PLAYBACK_BYTES else None
     return value if isinstance(value, str) else None
+
+
+def _secret_api_key() -> str:
+    """Read `DEEPGRAM_API_KEY` from `st.secrets`, tolerating the no-secrets-file case.
+
+    Deployment fallback for hosts that have no `.env` — Streamlit Community Cloud
+    writes dashboard secrets to a `secrets.toml` instead. Guarded rather than
+    probed because *every* access to `st.secrets` raises when no secrets file
+    exists (`.get()` and `in` included), and that is the normal local setup here.
+    Touching `st.secrets` at all is also what mirrors top-level secrets into
+    `os.environ`; nothing else in the app does, so on Cloud the environment read
+    alone comes up empty.
+    """
+    try:
+        value = st.secrets.get("DEEPGRAM_API_KEY", "")
+    except StreamlitSecretNotFoundError:
+        return ""
+    return value if isinstance(value, str) else ""
 
 
 def _completion_toast(n_ok: int, total: int) -> None:
@@ -452,14 +471,15 @@ st.caption(
     "speaker labels, measurement formatting, and PII/PHI redaction."
 )
 
-api_key = os.environ.get("DEEPGRAM_API_KEY", "")
+# Environment first (`.env` via load_dotenv), then `st.secrets` for deployed hosts.
+api_key = os.environ.get("DEEPGRAM_API_KEY", "") or _secret_api_key()
 if not api_key:
     st.warning(
         "Deepgram API key required. Get a free key at https://deepgram.com.",
         icon=":material/key:",
     )
     api_key = st.text_input(
-        "Deepgram API Key",
+        "Deepgram API key",
         type="password",
         placeholder="Paste your Deepgram API key to continue",
         label_visibility="collapsed",

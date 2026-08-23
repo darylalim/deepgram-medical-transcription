@@ -901,6 +901,31 @@ class TestTranscriptDownload:
         assert "Alpha." in combined and "Beta." in combined
 
 
+class TestSecretApiKey:
+    """`_secret_api_key` guards a `st.secrets` read that raises when unconfigured."""
+
+    def test_missing_secrets_file_returns_empty(self):
+        # st.secrets raises on *every* access when no secrets.toml exists — the
+        # normal local setup here, where the key comes from .env instead.
+        secrets = MagicMock()
+        secrets.get.side_effect = streamlit_app.StreamlitSecretNotFoundError("none")
+        with patch.object(streamlit_app.st, "secrets", secrets):
+            assert streamlit_app._secret_api_key() == ""
+
+    def test_configured_secret_is_returned(self):
+        secrets = MagicMock()
+        secrets.get.return_value = "sk-from-secrets"
+        with patch.object(streamlit_app.st, "secrets", secrets):
+            assert streamlit_app._secret_api_key() == "sk-from-secrets"
+
+    def test_non_string_secret_is_rejected(self):
+        # A TOML table (or number) under the key must never reach DeepgramClient.
+        secrets = MagicMock()
+        secrets.get.return_value = {"nested": "table"}
+        with patch.object(streamlit_app.st, "secrets", secrets):
+            assert streamlit_app._secret_api_key() == ""
+
+
 class TestAppSmoke:
     """Run the whole script under a real Streamlit runtime (not the mock).
 
@@ -1039,11 +1064,14 @@ assert not flat_at.exception, flat_at.exception
 assert [m.value for m in flat_at.markdown] == ["Patient is stable."]
 assert not any("Speaker" in m.value for m in flat_at.markdown)
 
-# 4) No-key state — clear the key and no-op load_dotenv (.env would otherwise
-#    repopulate it) so the key-required warning + API-Key input render.
+# 4) No-key state — clear the key, no-op load_dotenv, and empty the secrets search
+#    path, so neither a local .env nor a developer's ~/.streamlit/secrets.toml can
+#    repopulate it; the key-required warning + API-key input must render.
 import dotenv
+from streamlit import config
 
 dotenv.load_dotenv = lambda *a, **k: False
+config.set_option("secrets.files", [])
 os.environ.pop("DEEPGRAM_API_KEY", None)
 nokey = AppTest.from_file(app, default_timeout=30).run()
 assert not nokey.exception, nokey.exception
