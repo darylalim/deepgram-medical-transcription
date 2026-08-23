@@ -23,23 +23,12 @@
         ]
       }
     ],
-    "PostToolUse": [
-      {
-        "matcher": "Edit|Write|MultiEdit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/py-checks.sh\""
-          }
-        ]
-      }
-    ],
     "Stop": [
       {
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/pytest-on-stop.sh\""
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/gates.sh\""
           }
         ]
       }
