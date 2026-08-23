@@ -10,7 +10,22 @@ workflow with PyYAML and pin the invariants it exists to hold:
    comment — the same four gates the ``.claude/hooks/`` scripts enforce locally
    (``ruff format --check`` / ``ruff check`` / ``ty check`` / ``pytest``) plus
    the ``uv sync --locked`` lockfile-drift check.
-2. **It stays least-privilege and injection-safe.** No ``write`` permission
+2. **The required-status-check contract is pinned.** GitHub names an unnamed
+   matrix job's check runs ``<job-id> (<matrix value>)``, so the job id ``checks``
+   plus the matrix values ``["3.12", "3.13"]`` are the *sole* source of the
+   ``checks (3.12)`` / ``checks (3.13)`` contexts the ``main`` ruleset requires.
+   Rename the job, give it a ``name:``, or drop a leg, and a required context is
+   never reported again — GitHub holds it pending forever, every PR becomes
+   unmergeable, and ``gh pr merge --auto`` in ``dependabot-auto-merge.yml`` waits
+   on something that will never arrive. Nothing surfaces an error, which is why
+   it is pinned here.
+3. **``workflow_call`` stays available.** ``release.yml`` calls this file as a
+   local reusable workflow to gate a release on the gates passing at that commit;
+   removing the trigger fails that run instantly.
+4. **Third-party actions are SHA-pinned.** ``ci.yml`` is the only workflow in the
+   repo with third-party ``uses:`` steps, so it is the only one where this can
+   actually regress.
+5. **It stays least-privilege and injection-safe.** No ``write`` permission
    scope anywhere; it triggers on ``pull_request`` (never the write-privileged
    ``pull_request_target``); and no ``run:`` step interpolates attacker-
    controllable ``github.event.*`` / ``github.head_ref`` / ``inputs.*`` text
@@ -34,6 +49,8 @@ WORKFLOW = Path(__file__).resolve().parent.parent / ".github" / "workflows" / "c
 # into a shell `run:` step. `inputs.*` covers the `workflow_dispatch` surface.
 _UNTRUSTED_GITHUB = re.compile(r"\$\{\{[^}]*\bgithub\.(?:event|head_ref)\b")
 _UNTRUSTED_INPUTS = re.compile(r"\$\{\{[^}]*\binputs\b")
+# Every `uses:` must name a full 40-hex commit SHA, never a mutable tag.
+_SHA_PINNED = re.compile(r"\S+@[0-9a-f]{40}\b")
 
 
 @pytest.fixture(scope="module")
@@ -100,3 +117,50 @@ def test_run_steps_have_no_untrusted_interpolation(workflow: dict) -> None:
             f"untrusted github context in: {run!r}"
         )
         assert not _UNTRUSTED_INPUTS.search(run), f"raw inputs.* in run step: {run!r}"
+
+
+def test_required_status_check_names_are_pinned(workflow: dict) -> None:
+    """The job id and matrix values ARE the branch-protection check names.
+
+    ``checks (3.12)`` / ``checks (3.13)`` are generated, not configured: GitHub
+    builds them from the job id plus the single matrix dimension. A ``name:`` on
+    the job would replace the job id half, so its *absence* is load-bearing too.
+    """
+    job = workflow["jobs"]["checks"]
+    assert "name" not in job, (
+        "a `name:` on the checks job renames the required contexts "
+        "`checks (3.12)`/`checks (3.13)` — update the main ruleset first"
+    )
+    matrix = job["strategy"]["matrix"]
+    assert set(matrix) == {"python-version"}, (
+        f"a second matrix dimension changes the check names: {sorted(matrix)}"
+    )
+    assert matrix["python-version"] == ["3.12", "3.13"], (
+        "the matrix values are the second half of the required status check "
+        "names; changing them wedges every PR until the ruleset is updated"
+    )
+    # A cancelled leg never reports success, so fail-fast would leave a required
+    # check unresolved the moment the other leg fails.
+    assert job["strategy"].get("fail-fast") is False
+
+
+def test_ci_is_callable_as_a_reusable_workflow(workflow: dict) -> None:
+    # release.yml's `gate` job is `uses: ./.github/workflows/ci.yml`; without this
+    # trigger that run fails immediately with "does not have a workflow_call
+    # trigger", and a release would be cut with no gate at all.
+    assert "workflow_call" in _triggers(workflow), (
+        "release.yml calls ci.yml as a reusable workflow — keep `workflow_call:`"
+    )
+
+
+def test_actions_are_sha_pinned(workflow: dict) -> None:
+    # ci.yml is the only workflow here with third-party `uses:` steps, matching
+    # the same assertion in test_release_workflow.py / test_automerge_workflow.py.
+    uses = [
+        s["uses"]
+        for s in workflow["jobs"]["checks"]["steps"]
+        if isinstance(s, dict) and "uses" in s
+    ]
+    assert uses, "the checks job uses no actions — did the steps change?"
+    for ref in uses:
+        assert _SHA_PINNED.match(ref), f"action must be SHA-pinned, got {ref!r}"
